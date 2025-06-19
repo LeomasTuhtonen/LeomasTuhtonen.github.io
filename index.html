@@ -102,11 +102,11 @@
         <canvas id="loadsChart"></canvas>
     </div>
 
-    <div class="section">
+    <div class="section full-width">
         <h2>Shear Force Diagram</h2>
         <canvas id="shearChart"></canvas>
     </div>
-    <div class="section">
+    <div class="section full-width">
         <h2>Bending Moment Diagram</h2>
         <canvas id="momentChart"></canvas>
     </div>
@@ -628,6 +628,16 @@ if(window.Chart) Chart.register(reactionPlugin);
 
 function updateChart(chart,x,y,label,scatter,reactions){
     const isEnvelope=Array.isArray(y[0]);
+    let unitLabel='';
+    if(label==='Shear' || label==='Moment'){
+        const scaleData=arr=>arr.map(v=>v/1000);
+        if(isEnvelope){
+            y=[scaleData(y[0]),scaleData(y[1])];
+        } else {
+            y=scaleData(y);
+        }
+        unitLabel=label==='Shear'?' (kN)':' (kNm)';
+    }
     if(chart){
         chart.destroy();
         chart=null;
@@ -655,7 +665,8 @@ function updateChart(chart,x,y,label,scatter,reactions){
     if(reactions){
         datasets.push({type:'scatter',label:'R',data:reactions,borderColor:'orange',backgroundColor:'orange',showLine:false});
     }
-    const newChart=new Chart(ctx,{type:'line',data:{datasets},options:{scales:{x:{type:'linear',title:{display:true,text:'x'}},y:{title:{display:true,text:label}}},reactions:reactions||[]}});
+    const yTitle=label+unitLabel;
+    const newChart=new Chart(ctx,{type:'line',data:{datasets},options:{scales:{x:{type:'linear',title:{display:true,text:'x'}},y:{title:{display:true,text:yTitle}}},reactions:reactions||[]}});
     if(label==='Shear') shearChart=newChart;
     if(label==='Moment') momentChart=newChart;
     if(label==='Deflection') deflectionChart=newChart;
