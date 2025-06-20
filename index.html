@@ -760,8 +760,10 @@ function updateChart(chart,x,y,label,scatter,reactions){
     if(isEnvelope){
         const dmin=x.map((v,i)=>({x:v,y:y[0][i]}));
         const dmax=x.map((v,i)=>({x:v,y:y[1][i]}));
-        datasets=[{label:label+' min',data:dmin,fill:false,borderColor:'blue',backgroundColor:'rgba(0,0,255,0.2)',showLine:true},
-                  {label:label+' max',data:dmax,fill:'-1',borderColor:'green',backgroundColor:'rgba(0,255,0,0.2)',showLine:true}];
+        datasets=[
+            {label:label+' min',data:dmin,fill:'+1',borderColor:'blue',backgroundColor:'rgba(0,0,255,0.2)',showLine:true},
+            {label:label+' max',data:dmax,fill:'-1',borderColor:'green',backgroundColor:'rgba(0,255,0,0.2)',showLine:true}
+        ];
     } else {
         const xyData=x.map((v,i)=>({x:v,y:y[i]}));
         datasets=[{label:label,data:xyData,fill:true,borderColor:'blue',backgroundColor:'rgba(0,0,255,0.2)',showLine:true}];
