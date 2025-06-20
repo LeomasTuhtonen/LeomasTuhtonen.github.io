@@ -21,10 +21,19 @@
         button { padding:6px 12px; margin-top:4px; background:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; }
         button:hover { background:#45a049; }
         h1 { text-align:center; padding:20px 0; margin:0; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.1); margin-bottom:20px; }
+        #tabs { text-align:center; margin-bottom:20px; }
+        #tabs button { padding:6px 12px; margin:0 5px; border:none; border-radius:4px; cursor:pointer; background:#ddd; }
+        #tabs button.active { background:#4CAF50; color:white; }
+        .tabcontent { display:none; }
     </style>
 </head>
 <body>
     <h1>Beam Calculator</h1>
+    <div id="tabs">
+        <button data-tab="analysis" class="active" onclick="showTab('analysis')">Analysis</button>
+        <button data-tab="design" onclick="showTab('design')">Design</button>
+    </div>
+    <div id="analysisTab" class="tabcontent" style="display:block;">
     <div id="container">
     <div id="controls">
     <div class="section">
@@ -117,6 +126,29 @@
     </div>
     </div> <!-- end charts -->
     </div> <!-- end container -->
+    </div> <!-- end analysisTab -->
+
+    <div id="designTab" class="tabcontent">
+    <div class="section">
+        <h2>Cross-section Design</h2>
+        <div class="input-row">
+            <label>Section:</label>
+            <select id="designSectionSelect"></select>
+        </div>
+        <div class="input-row">
+            <label>Bending stiffness EI:</label>
+            <span id="designEI">-</span>
+        </div>
+        <div class="input-row">
+            <label>Bending resistance M,Rd:</label>
+            <span id="designMRd">-</span>
+        </div>
+        <div class="input-row">
+            <label>Shear resistance V,Rd:</label>
+            <span id="designVRd">-</span>
+        </div>
+    </div>
+    </div> <!-- end designTab -->
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="cross_sections_data.js"></script>
@@ -167,10 +199,12 @@ function loadCrossSections(){
         crossSections = window.crossSectionsData;
         if(window.setCrossSections) window.setCrossSections(crossSections);
         populateSectionSelect();
+        populateDesignSelect();
         const first=Object.keys(crossSections)[0];
         state.section=first;
         state.I=crossSections[first].Iz_m4;
         updateSectionProps(first);
+        updateDesignProps(first);
         updateSelfWeightLineLoad();
     } else {
         fetch('cross_sections.json').then(r=>r.json()).then(data=>{
@@ -178,10 +212,12 @@ function loadCrossSections(){
             data.forEach(cs=>{crossSections[cs.profile]=cs;});
             if(window.setCrossSections) window.setCrossSections(crossSections);
             populateSectionSelect();
+            populateDesignSelect();
             const first=Object.keys(crossSections)[0];
             state.section=first;
             state.I=crossSections[first].Iz_m4;
             updateSectionProps(first);
+            updateDesignProps(first);
             updateSelfWeightLineLoad();
         });
     }
@@ -782,6 +818,42 @@ function updateChart(chart,x,y,label,scatter,reactions){
     if(label==='Moment') momentChart=newChart;
     if(label==='Deflection') deflectionChart=newChart;
     if(label==='Loads') loadChart=newChart;
+}
+
+function populateDesignSelect(){
+    const sel=document.getElementById('designSectionSelect');
+    if(!sel) return;
+    sel.innerHTML='';
+    Object.keys(crossSections)
+        .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))
+        .forEach(name=>{
+            const opt=document.createElement('option');
+            opt.value=name; opt.textContent=name;
+            sel.appendChild(opt);
+        });
+    sel.onchange=function(){ updateDesignProps(this.value); };
+    sel.selectedIndex=0;
+    updateDesignProps(sel.value);
+}
+
+function updateDesignProps(name){
+    const cs=crossSections[name];
+    const EIel=document.getElementById('designEI');
+    const MRdel=document.getElementById('designMRd');
+    const VRdel=document.getElementById('designVRd');
+    if(!cs){ EIel.textContent='-'; MRdel.textContent='-'; VRdel.textContent='-'; return; }
+    const EI=(state.E*cs.Iz_m4).toExponential(3);
+    EIel.textContent=EI+' N\u00b7m\u00b2';
+    MRdel.textContent='-';
+    VRdel.textContent='-';
+}
+
+function showTab(name){
+    document.getElementById('analysisTab').style.display=name==='analysis'?'block':'none';
+    document.getElementById('designTab').style.display=name==='design'?'block':'none';
+    document.querySelectorAll('#tabs button').forEach(btn=>{
+        btn.classList.toggle('active', btn.dataset.tab===name);
+    });
 }
 
 addSpan(10);
