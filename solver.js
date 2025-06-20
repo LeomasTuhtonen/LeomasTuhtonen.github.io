@@ -106,6 +106,7 @@ function computeResults(state){
     const posSet=new Set(boundaries);
     (state.pointLoads||[]).forEach(p=>posSet.add(p.x));
     (state.lineLoads||[]).forEach(l=>{posSet.add(l.start); posSet.add(l.end);});
+    (state.extraNodePositions||[]).forEach(x=>posSet.add(x));
 
     const critical=Array.from(posSet).sort((a,b)=>a-b);
     const nodes=[critical[0]];

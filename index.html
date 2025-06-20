@@ -35,6 +35,7 @@
             <button id="exportBtn">Export PDF</button>
         </div>
         <pre id="summaryOutput"></pre>
+        <div id="warningMsg" style="color:red;font-weight:bold;"></div>
     </div>
 
     <div class="section">
@@ -166,14 +167,22 @@ function loadCrossSections(){
         crossSections = window.crossSectionsData;
         if(window.setCrossSections) window.setCrossSections(crossSections);
         populateSectionSelect();
-        updateSectionProps(Object.keys(crossSections)[0]);
+        const first=Object.keys(crossSections)[0];
+        state.section=first;
+        state.I=crossSections[first].Iz_m4;
+        updateSectionProps(first);
+        updateSelfWeightLineLoad();
     } else {
         fetch('cross_sections.json').then(r=>r.json()).then(data=>{
             crossSections={};
             data.forEach(cs=>{crossSections[cs.profile]=cs;});
             if(window.setCrossSections) window.setCrossSections(crossSections);
             populateSectionSelect();
-            updateSectionProps(Object.keys(crossSections)[0]);
+            const first=Object.keys(crossSections)[0];
+            state.section=first;
+            state.I=crossSections[first].Iz_m4;
+            updateSectionProps(first);
+            updateSelfWeightLineLoad();
         });
     }
 }
@@ -186,11 +195,12 @@ function addSpan(length = 5) {
     div.className = 'input-row';
     div.innerHTML = `<label>Span ${idx+1} length:</label>`+
         `<input type='number' value='${length}' min='0.1' step='0.1' `+
-        `onchange='state.spans[${idx}].length=parseFloat(this.value); solveSelected();' />`+
+        `onchange='state.spans[${idx}].length=parseFloat(this.value); updateSelfWeightLineLoad(); updateWholeLineLoads(); solveSelected();' />`+
         `<button onclick='removeSpan(${idx})'>Remove</button>`;
     div.id = `span-${idx}`;
     document.getElementById('spansContainer').appendChild(div);
     updateSelfWeightLineLoad();
+    updateWholeLineLoads();
     solveSelected();
 }
 function removeSpan(i) {
@@ -199,6 +209,7 @@ function removeSpan(i) {
     // rebuild IDs
     rebuildSpans();
     updateSelfWeightLineLoad();
+    updateWholeLineLoads();
     solveSelected();
 }
 function rebuildSpans(){
@@ -239,16 +250,18 @@ function rebuildPointLoads(){
     arr.forEach(l=>addPointLoad(l.P,l.x,l.case));
 }
 
-function addLineLoad(w=5,start=0,end=1,lc='LC1'){
+function addLineLoad(w=5,start=0,end=1,lc='LC1',whole=false){
     const idx=state.lineLoads.length;
-    state.lineLoads.push({w,start,end,case:lc});
+    state.lineLoads.push({w,start,end,case:lc,whole});
     const div=document.createElement('div');
     div.className='input-row';
+    const dis=whole?'disabled':'';
     div.innerHTML=`<label>Line ${idx+1} (w kN/m,start,end,case):</label>`+
     `<input type='number' value='${(w/1000)}' step='0.1' onchange='state.lineLoads[${idx}].w=parseFloat(this.value)*1000; solveSelected();'/>`+
-    `<input type='number' value='${start}' step='0.1' onchange='state.lineLoads[${idx}].start=parseFloat(this.value); solveSelected();'/>`+
-    `<input type='number' value='${end}' step='0.1' onchange='state.lineLoads[${idx}].end=parseFloat(this.value); solveSelected();'/>`+
+    `<input id='lload-start-${idx}' type='number' value='${start}' step='0.1' ${dis} onchange='state.lineLoads[${idx}].start=parseFloat(this.value); solveSelected();'/>`+
+    `<input id='lload-end-${idx}' type='number' value='${end}' step='0.1' ${dis} onchange='state.lineLoads[${idx}].end=parseFloat(this.value); solveSelected();'/>`+
     `<input type='text' value='${lc}' onchange='state.lineLoads[${idx}].case=this.value; updateResultsOptions(); solveSelected();'/>`+
+    `<label><input id='lload-whole-${idx}' type='checkbox' ${whole?'checked':''} onchange='toggleWholeLineLoad(${idx},this.checked);'/> across the whole beam</label>`+
     `<button onclick='removeLineLoad(${idx})'>Remove</button>`;
     div.id=`lload-${idx}`;
     document.getElementById('lineLoadsContainer').appendChild(div);
@@ -281,9 +294,10 @@ function rebuildLineLoads(){
                 `<input type='text' value='SW' readonly />`;
             c.appendChild(div);
         } else {
-            addLineLoad(l.w,l.start,l.end,l.case);
+            addLineLoad(l.w,l.start,l.end,l.case,l.whole);
         }
     });
+    updateWholeLineLoads();
 }
 
 function updateSelfWeightLineLoad(){
@@ -311,6 +325,57 @@ function updateSelfWeightLineLoad(){
         `<input type='text' value='SW' readonly />`;
     document.getElementById('lineLoadsContainer').appendChild(div);
     updateResultsOptions();
+    updateWholeLineLoads();
+}
+
+function getBeamLength(){
+    return state.spans.reduce((a,s)=>a+(typeof s==='number'?s:s.length),0);
+}
+
+function toggleWholeLineLoad(i,checked){
+    const len=getBeamLength();
+    const l=state.lineLoads[i];
+    l.whole=checked;
+    if(checked){
+        l.start=0;
+        l.end=len;
+    }
+    const s=document.getElementById(`lload-start-${i}`);
+    const e=document.getElementById(`lload-end-${i}`);
+    if(s){s.disabled=checked; s.value=l.start;}
+    if(e){e.disabled=checked; e.value=l.end;}
+    solveSelected();
+}
+
+function updateWholeLineLoads(){
+    const len=getBeamLength();
+    state.lineLoads.forEach((l,i)=>{
+        if(l.whole && !l.autoSW){
+            l.start=0;
+            l.end=len;
+            const s=document.getElementById(`lload-start-${i}`);
+            const e=document.getElementById(`lload-end-${i}`);
+            if(s){s.disabled=true; s.value=0;}
+            if(e){e.disabled=true; e.value=len;}
+        }
+    });
+}
+
+function hasOutOfRangeLoad(){
+    const len=getBeamLength();
+    for(const p of state.pointLoads){
+        if(p.x<0 || p.x>len) return true;
+    }
+    for(const l of state.lineLoads){
+        if(l.start<0 || l.end>len) return true;
+    }
+    return false;
+}
+
+function updateWarning(){
+    const warn=document.getElementById('warningMsg');
+    if(!warn) return;
+    warn.textContent = hasOutOfRangeLoad() ? 'Warning: some loads are outside the beam length.' : '';
 }
 
 function parseFactors(str){
@@ -469,33 +534,60 @@ document.getElementById('exportBtn').onclick=function(){
 // FEM Solver
 function solveSelected(){
     updateResultsOptions();
+    updateWarning();
     if(state.selected.type==='envelope'){
         if(state.loadCombinations.length===0) return;
-        let minS,maxS,minM,maxM,minD,maxD,xs,nodes;
+        const xsSet=new Set();
+        const minS={},maxS={},minM={},maxM={},minD={},maxD={};
         state.loadCombinations.forEach((comb,i)=>{
             const loads=getLoadsForSelected.call({selected:{type:'comb',index:i}});
-            const res=computeResults({...state,pointLoads:loads.pointLoads,lineLoads:loads.lineLoads});
+            const extraNodes=[
+                ...new Set([
+                    ...state.pointLoads.map(p=>p.x),
+                    ...state.lineLoads.flatMap(l=>[l.start,l.end])
+                ])
+            ];
+            const res=computeResults({
+                ...state,
+                pointLoads:loads.pointLoads,
+                lineLoads:loads.lineLoads,
+                extraNodePositions:extraNodes
+            });
             const diagRaw=computeDiagrams({...state,pointLoads:loads.pointLoads,lineLoads:loads.lineLoads},res.nodes,res.reactions);
             const shearVals=diagRaw.shearVals.map(v=>-v);
             const momentVals=diagRaw.momentVals.map(v=>-v);
-            const def=res.nodes.map((_,idx)=>res.displacements[2*idx]*1000);
-            if(!xs){xs=diagRaw.xs; nodes=res.nodes; minS=shearVals.slice(); maxS=shearVals.slice(); minM=momentVals.slice(); maxM=momentVals.slice(); minD=def.slice(); maxD=def.slice();}
-            else{
-                shearVals.forEach((v,j)=>{if(v<minS[j]) minS[j]=v; if(v>maxS[j]) maxS[j]=v;});
-                momentVals.forEach((v,j)=>{if(v<minM[j]) minM[j]=v; if(v>maxM[j]) maxM[j]=v;});
-                def.forEach((v,j)=>{if(v<minD[j]) minD[j]=v; if(v>maxD[j]) maxD[j]=v;});
-            }
+            const defVals=res.nodes.map((_,idx)=>res.displacements[2*idx]*1000);
+            diagRaw.xs.forEach((x,j)=>{
+                xsSet.add(x);
+                if(minS[x]===undefined){minS[x]=shearVals[j]; maxS[x]=shearVals[j];}
+                else{ if(shearVals[j]<minS[x]) minS[x]=shearVals[j]; if(shearVals[j]>maxS[x]) maxS[x]=shearVals[j]; }
+                if(minM[x]===undefined){minM[x]=momentVals[j]; maxM[x]=momentVals[j];}
+                else{ if(momentVals[j]<minM[x]) minM[x]=momentVals[j]; if(momentVals[j]>maxM[x]) maxM[x]=momentVals[j]; }
+            });
+            res.nodes.forEach((x,j)=>{
+                xsSet.add(x);
+                const v=defVals[j];
+                if(minD[x]===undefined){minD[x]=v; maxD[x]=v;}
+                else{ if(v<minD[x]) minD[x]=v; if(v>maxD[x]) maxD[x]=v; }
+            });
         });
-        updateChart(shearChart,xs,[minS,maxS],'Shear');
-        updateChart(momentChart,xs,[minM,maxM],'Moment');
-        plotDeflection(nodes,[minD,maxD]);
+        const xs=Array.from(xsSet).sort((a,b)=>a-b);
+        const minSArr=xs.map(x=>minS[x]);
+        const maxSArr=xs.map(x=>maxS[x]);
+        const minMArr=xs.map(x=>minM[x]);
+        const maxMArr=xs.map(x=>maxM[x]);
+        const minDArr=xs.map(x=>minD[x]);
+        const maxDArr=xs.map(x=>maxD[x]);
+        updateChart(shearChart,xs,[minSArr,maxSArr],'Shear');
+        updateChart(momentChart,xs,[minMArr,maxMArr],'Moment');
+        plotDeflection(xs,[minDArr,maxDArr]);
         document.getElementById("reactionsOutput").textContent='Envelope shown';
-        const minShear=(Math.min(...minS)/1000).toFixed(2);
-        const maxShear=(Math.max(...maxS)/1000).toFixed(2);
-        const minMoment=(Math.min(...minM)/1000).toFixed(2);
-        const maxMoment=(Math.max(...maxM)/1000).toFixed(2);
-        const minDef=Math.min(...minD).toFixed(2);
-        const maxDef=Math.max(...maxD).toFixed(2);
+        const minShear=(Math.min(...minSArr)/1000).toFixed(2);
+        const maxShear=(Math.max(...maxSArr)/1000).toFixed(2);
+        const minMoment=(Math.min(...minMArr)/1000).toFixed(2);
+        const maxMoment=(Math.max(...maxMArr)/1000).toFixed(2);
+        const minDef=Math.min(...minDArr).toFixed(2);
+        const maxDef=Math.max(...maxDArr).toFixed(2);
         const txt=`Shear: ${minShear} kN to ${maxShear} kN\n`+
                    `Moment: ${minMoment} kNm to ${maxMoment} kNm\n`+
                    `Deflection: ${minDef} mm to ${maxDef} mm`;
@@ -503,7 +595,18 @@ function solveSelected(){
         return;
     }
     const loads=getLoadsForSelected();
-    const results = computeResults({...state,pointLoads:loads.pointLoads,lineLoads:loads.lineLoads});
+    const extraNodes=[
+        ...new Set([
+            ...state.pointLoads.map(p=>p.x),
+            ...state.lineLoads.flatMap(l=>[l.start,l.end])
+        ])
+    ];
+    const results = computeResults({
+        ...state,
+        pointLoads:loads.pointLoads,
+        lineLoads:loads.lineLoads,
+        extraNodePositions:extraNodes
+    });
     if(!results) return;
     const {nodes,reactions,displacements,supportIndices} = results;
     const diag = plotDiagrams(nodes,reactions,loads,supportIndices);
@@ -619,7 +722,7 @@ const reactionPlugin={
         reactions.forEach(r=>{
             const xPix=chart.scales.x.getPixelForValue(r.x);
             const yPix=chart.scales.y.getPixelForValue(0);
-            ctx.fillText((r.y/1000).toFixed(2)+' kN',xPix+5,yPix-5);
+            ctx.fillText(r.y.toFixed(2)+' kN',xPix+5,yPix-5);
         });
         ctx.restore();
     }
@@ -637,6 +740,12 @@ function updateChart(chart,x,y,label,scatter,reactions){
             y=scaleData(y);
         }
         unitLabel=label==='Shear'?' (kN)':' (kNm)';
+    } else if(label==='Loads'){
+        const scaleData=arr=>arr.map(v=>v/1000);
+        y=scaleData(y);
+        if(scatter) scatter=scatter.map(p=>({x:p.x,y:p.y/1000}));
+        if(reactions) reactions=reactions.map(r=>({x:r.x,y:r.y/1000}));
+        unitLabel=' (kN/m)';
     }
     if(chart){
         chart.destroy();
