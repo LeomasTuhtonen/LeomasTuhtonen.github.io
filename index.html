@@ -156,6 +156,14 @@
             <span id="designVRd">-</span>
         </div>
         <div class="input-row">
+            <label>Bending utilization:</label>
+            <span id="designMomentUtil">-</span>
+        </div>
+        <div class="input-row">
+            <label>Shear utilization:</label>
+            <span id="designShearUtil">-</span>
+        </div>
+        <div class="input-row">
             <canvas id="sectionCanvas" width="300" height="200" style="border:1px solid #ccc;"></canvas>
         </div>
         <div class="input-row" id="designEquations"></div>
@@ -181,7 +189,8 @@ const state = {
     leftSupport: true,
     rightSupport: true,
     loadCombinations: [],
-    selected: {type:'case', name:'LC1'}
+    selected: {type:'case', name:'LC1'},
+    envelopeForces: null
 };
 
 let crossSections = {};
@@ -586,6 +595,9 @@ document.getElementById('exportBtn').onclick=function(){
 function solveSelected(){
     updateResultsOptions();
     updateWarning();
+    computeEnvelopeForces();
+    const sel=document.getElementById('designSectionSelect');
+    if(sel) updateDesignProps(sel.value);
     if(state.selected.type==='envelope'){
         if(state.loadCombinations.length===0) return;
         const xsSet=new Set();
@@ -835,6 +847,48 @@ function updateChart(chart,x,y,label,scatter,reactions){
     if(label==='Loads') loadChart=newChart;
 }
 
+function computeEnvelopeForces(){
+    if(state.loadCombinations.length===0){ state.envelopeForces=null; return; }
+    const xsSet=new Set();
+    const minS={},maxS={},minM={},maxM={};
+    state.loadCombinations.forEach((comb,i)=>{
+        const loads=getLoadsForSelected.call({selected:{type:'comb',index:i}});
+        const extraNodes=[
+            ...new Set([
+                ...state.pointLoads.map(p=>p.x),
+                ...state.lineLoads.flatMap(l=>[l.start,l.end])
+            ])
+        ];
+        const res=computeResults({
+            ...state,
+            pointLoads:loads.pointLoads,
+            lineLoads:loads.lineLoads,
+            extraNodePositions:extraNodes
+        });
+        const diag=computeDiagrams({...state,pointLoads:loads.pointLoads,lineLoads:loads.lineLoads},res.nodes,res.reactions);
+        const shearVals=diag.shearVals.map(v=>-v);
+        const momentVals=diag.momentVals.map(v=>-v);
+        diag.xs.forEach((x,j)=>{
+            xsSet.add(x);
+            if(minS[x]===undefined){minS[x]=shearVals[j]; maxS[x]=shearVals[j];}
+            else { if(shearVals[j]<minS[x]) minS[x]=shearVals[j]; if(shearVals[j]>maxS[x]) maxS[x]=shearVals[j]; }
+            if(minM[x]===undefined){minM[x]=momentVals[j]; maxM[x]=momentVals[j];}
+            else { if(momentVals[j]<minM[x]) minM[x]=momentVals[j]; if(momentVals[j]>maxM[x]) maxM[x]=momentVals[j]; }
+        });
+    });
+    const xs=Array.from(xsSet).sort((a,b)=>a-b);
+    const minSArr=xs.map(x=>minS[x]);
+    const maxSArr=xs.map(x=>maxS[x]);
+    const minMArr=xs.map(x=>minM[x]);
+    const maxMArr=xs.map(x=>maxM[x]);
+    state.envelopeForces={
+        minShear: Math.min(...minSArr),
+        maxShear: Math.max(...maxSArr),
+        minMoment: Math.min(...minMArr),
+        maxMoment: Math.max(...maxMArr)
+    };
+}
+
 function populateDesignSelect(){
     const sel=document.getElementById('designSectionSelect');
     if(!sel) return;
@@ -902,8 +956,10 @@ function updateDesignEquations(design){
     const div=document.getElementById('designEquations');
     if(!div){return;}
     if(!design){ div.innerHTML=''; if(window.MathJax) MathJax.typesetPromise([div]); return; }
-    div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${design.MRd.toExponential(3)}\\ \text{ N\\,m}$$<br>`+
-                 `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${design.VRd.toExponential(3)}\\ \text{ N}$$`;
+    const mRd=(design.MRd/1000).toFixed(1);
+    const vRd=(design.VRd/1000).toFixed(1);
+    div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${mRd}\\ \text{ kN\\,m}$$<br>`+
+                 `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${vRd}\\ \text{ kN}$$`;
     if(window.MathJax) MathJax.typesetPromise([div]);
 }
 
@@ -912,21 +968,34 @@ function updateDesignProps(name){
     const EIel=document.getElementById('designEI');
     const MRdel=document.getElementById('designMRd');
     const VRdel=document.getElementById('designVRd');
+    const Mutil=document.getElementById('designMomentUtil');
+    const Vutil=document.getElementById('designShearUtil');
     drawSectionGraphic(cs);
-    if(!cs){ EIel.textContent='-'; MRdel.textContent='-'; VRdel.textContent='-'; updateDesignEquations(null); return; }
+    if(!cs){ EIel.textContent='-'; MRdel.textContent='-'; VRdel.textContent='-'; if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
     let design=null;
     if(window.computeSectionDesign){
         design=computeSectionDesign(name,{fy:state.fy,E:state.E});
     }
-    const EI=(design?design.EI:state.E*cs.Iz_m4).toExponential(3);
-    EIel.textContent=EI+' N\u00b7m\u00b2';
+    const EIval=(design?design.EI:state.E*cs.Iz_m4)/1000;
+    EIel.textContent=EIval.toFixed(1)+' kN\u00b7m\u00b2';
     if(design){
-        MRdel.textContent=design.MRd.toExponential(3)+' N\u00b7m';
-        VRdel.textContent=design.VRd.toExponential(3)+' N';
+        MRdel.textContent=(design.MRd/1000).toFixed(1)+' kNm';
+        VRdel.textContent=(design.VRd/1000).toFixed(1)+' kN';
         updateDesignEquations(design);
+        if(state.envelopeForces){
+            const mAbs=Math.max(Math.abs(state.envelopeForces.minMoment), Math.abs(state.envelopeForces.maxMoment));
+            const vAbs=Math.max(Math.abs(state.envelopeForces.minShear), Math.abs(state.envelopeForces.maxShear));
+            if(Mutil) Mutil.textContent=(100*mAbs/design.MRd).toFixed(1)+'%';
+            if(Vutil) Vutil.textContent=(100*vAbs/design.VRd).toFixed(1)+'%';
+        } else {
+            if(Mutil) Mutil.textContent='-';
+            if(Vutil) Vutil.textContent='-';
+        }
     } else {
         MRdel.textContent='-';
         VRdel.textContent='-';
+        if(Mutil) Mutil.textContent='-';
+        if(Vutil) Vutil.textContent='-';
         updateDesignEquations(null);
     }
 }
