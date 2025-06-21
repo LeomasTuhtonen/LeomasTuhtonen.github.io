@@ -155,12 +155,17 @@
             <label>Shear resistance V,Rd:</label>
             <span id="designVRd">-</span>
         </div>
+        <div class="input-row">
+            <canvas id="sectionCanvas" width="300" height="200" style="border:1px solid #ccc;"></canvas>
+        </div>
+        <div class="input-row" id="designEquations"></div>
     </div>
     </div> <!-- end designTab -->
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="cross_sections_data.js"></script>
     <script src="solver.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
     <script>
 // State
 const state = {
@@ -856,12 +861,59 @@ function populateSteelSelect(){
     };
 }
 
+function drawSectionGraphic(cs){
+    const canvas=document.getElementById('sectionCanvas');
+    if(!canvas || !cs){ if(canvas) canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height); return; }
+    const ctx=canvas.getContext('2d');
+    const w=canvas.width, h=canvas.height;
+    ctx.clearRect(0,0,w,h);
+    const margin=10;
+    const scale=Math.min((w-2*margin)/cs.b_mm,(h-2*margin)/cs.h_mm);
+    ctx.save();
+    ctx.translate((w-cs.b_mm*scale)/2,(h-cs.h_mm*scale)/2);
+    ctx.scale(scale,scale);
+    ctx.fillStyle='#ddd';
+    ctx.strokeStyle='black';
+    ctx.lineWidth=2/scale;
+    ctx.beginPath();
+    ctx.rect(0,0,cs.b_mm,cs.tf_mm);
+    ctx.rect(0,cs.h_mm-cs.tf_mm,cs.b_mm,cs.tf_mm);
+    ctx.rect(cs.b_mm/2-cs.tw_mm/2,cs.tf_mm,cs.tw_mm,cs.h_mm-2*cs.tf_mm);
+    ctx.fill();
+    ctx.stroke();
+    const r=cs.r_mm||0;
+    if(r>0){
+        const x1=cs.b_mm/2-cs.tw_mm/2;
+        const x2=cs.b_mm/2+cs.tw_mm/2;
+        const y1=cs.tf_mm;
+        const y2=cs.h_mm-cs.tf_mm;
+        ctx.strokeStyle='red';
+        ctx.beginPath();
+        ctx.arc(x1+r,y1+r,r,Math.PI,1.5*Math.PI);
+        ctx.arc(x2-r,y1+r,r,1.5*Math.PI,0);
+        ctx.arc(x2-r,y2-r,r,0,0.5*Math.PI);
+        ctx.arc(x1+r,y2-r,r,0.5*Math.PI,Math.PI);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function updateDesignEquations(design){
+    const div=document.getElementById('designEquations');
+    if(!div){return;}
+    if(!design){ div.innerHTML=''; if(window.MathJax) MathJax.typesetPromise([div]); return; }
+    div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${design.MRd.toExponential(3)}\\ \text{ N\\,m}$$<br>`+
+                 `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${design.VRd.toExponential(3)}\\ \text{ N}$$`;
+    if(window.MathJax) MathJax.typesetPromise([div]);
+}
+
 function updateDesignProps(name){
     const cs=crossSections[name];
     const EIel=document.getElementById('designEI');
     const MRdel=document.getElementById('designMRd');
     const VRdel=document.getElementById('designVRd');
-    if(!cs){ EIel.textContent='-'; MRdel.textContent='-'; VRdel.textContent='-'; return; }
+    drawSectionGraphic(cs);
+    if(!cs){ EIel.textContent='-'; MRdel.textContent='-'; VRdel.textContent='-'; updateDesignEquations(null); return; }
     let design=null;
     if(window.computeSectionDesign){
         design=computeSectionDesign(name,{fy:state.fy,E:state.E});
@@ -871,9 +923,11 @@ function updateDesignProps(name){
     if(design){
         MRdel.textContent=design.MRd.toExponential(3)+' N\u00b7m';
         VRdel.textContent=design.VRd.toExponential(3)+' N';
+        updateDesignEquations(design);
     } else {
         MRdel.textContent='-';
         VRdel.textContent='-';
+        updateDesignEquations(null);
     }
 }
 
