@@ -162,9 +162,9 @@
     </div>
     </div> <!-- end designTab -->
 
-    <script src="simple_chart.js"></script>
-    <script src="cross_sections_data.js"></script>
-    <script src="solver.js"></script>
+    <script src="./simple_chart.js"></script>
+    <script src="./cross_sections_data.js"></script>
+    <script src="./solver.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
     <script>
 // State
@@ -221,7 +221,7 @@ function loadCrossSections(){
         updateDesignProps(first);
         updateSelfWeightLineLoad();
     } else {
-        fetch('cross_sections.json').then(r=>r.json()).then(data=>{
+        fetch('./cross_sections.json').then(r=>r.json()).then(data=>{
             crossSections={};
             data.forEach(cs=>{crossSections[cs.profile]=cs;});
             if(window.setCrossSections) window.setCrossSections(crossSections);
