@@ -1,172 +1,151 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Beam Calculator</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background:#f4f4f4; color:#333; }
-        #container { display:flex; flex-wrap:wrap; gap:20px; padding:20px; }
-        #controls { flex:1 1 300px; max-width:400px; }
-        #charts { flex:1 1 600px; display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-        #charts .section { min-width:0; }
-        #charts .full-width { grid-column:1 / -1; }
-        .section { background:#fff; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:20px; }
-        .input-row { margin-bottom: 10px; }
-        label { display: inline-block; width: 140px; }
-        input[type='number'], select { width: 100px; padding:4px; }
-        #sectionPropsTable { border-collapse: collapse; margin-top:4px; }
-        #sectionPropsTable td, #sectionPropsTable th { border: 1px solid #ccc; padding:2px 4px; font-size:12px; }
-        canvas { width: 100%; height: 250px; margin-top: 20px; background:#fff; border:1px solid #ddd; padding:10px; border-radius:4px; }
-        button { padding:6px 12px; margin-top:4px; background:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; }
-        button:hover { background:#45a049; }
-        h1 { text-align:center; padding:20px 0; margin:0; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.1); margin-bottom:20px; }
-        #tabs { text-align:center; margin-bottom:20px; }
-        #tabs button { padding:6px 12px; margin:0 5px; border:none; border-radius:4px; cursor:pointer; background:#ddd; }
-        #tabs button.active { background:#4CAF50; color:white; }
-        .tabcontent { display:none; }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <h1>Beam Calculator</h1>
-    <div id="tabs">
-        <button data-tab="analysis" class="active" onclick="showTab('analysis')">Analysis</button>
-        <button data-tab="design" onclick="showTab('design')">Design</button>
+<body class="bg-gray-900 text-gray-100 font-sans">
+    <h1 class="text-center py-5 m-0 bg-gray-800 shadow mb-5 text-xl font-semibold">Beam Calculator</h1>
+    <div id="tabs" class="text-center mb-5">
+        <button data-tab="analysis" class="active bg-green-600 text-white px-3 py-1 mx-1 rounded" onclick="showTab('analysis')">Analysis</button>
+        <button data-tab="design" class="px-3 py-1 mx-1 rounded bg-gray-700" onclick="showTab('design')">Design</button>
     </div>
     <div id="analysisTab" class="tabcontent" style="display:block;">
-    <div id="container">
-    <div id="controls">
-    <div class="section">
+    <div id="container" class="flex flex-wrap gap-5 p-5">
+    <div id="controls" class="flex-1 min-w-[300px] max-w-md">
+    <div class="section bg-gray-800 p-4 rounded-lg shadow mb-5">
         <h2>Results</h2>
-        <div class="input-row">
-            <label>Show results for:</label>
-            <select id="resultsSelect"></select>
-            <button id="exportBtn">Export PDF</button>
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Show results for:</label>
+            <select id="resultsSelect" class="w-24 px-2 py-1 text-gray-900"></select>
+            <button id="exportBtn" class="bg-green-600 text-white px-3 py-1 rounded mt-1">Export PDF</button>
         </div>
-        <pre id="summaryOutput"></pre>
+        <pre id="summaryOutput" class="bg-gray-700 p-2 rounded"></pre>
         <div id="warningMsg" style="color:red;font-weight:bold;"></div>
     </div>
 
-    <div class="section">
+    <div class="section bg-gray-800 p-4 rounded-lg shadow mb-5">
         <h2>Beam Setup</h2>
-        <div class="input-row">
-            <label>Max node distance:</label>
-            <input type="number" id="maxNodeDist" value="1" min="0.1" step="0.1" />
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Max node distance:</label>
+            <input type="number" id="maxNodeDist" class="w-24 px-2 py-1 text-gray-900" value="1" min="0.1" step="0.1" />
         </div>
-        <div class="input-row">
-            <label>Cross-section:</label>
-            <select id="sectionSelect"></select>
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Cross-section:</label>
+            <select id="sectionSelect" class="w-24 px-2 py-1 text-gray-900"></select>
         </div>
-        <div class="input-row">
-            <label></label>
-            <table id="sectionPropsTable"></table>
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36"></label>
+            <table id="sectionPropsTable" class="border-collapse mt-1 text-sm border border-gray-600"></table>
         </div>
-        <div class="input-row">
-            <label>Include self weight:</label>
-            <input type="checkbox" id="selfWeightToggle" checked />
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Include self weight:</label>
+            <input type="checkbox" id="selfWeightToggle" class="mr-2" checked />
         </div>
-        <div class="input-row">
-            <label>Left support present:</label>
-            <input type="checkbox" id="leftSupportToggle" checked />
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Left support present:</label>
+            <input type="checkbox" id="leftSupportToggle" class="mr-2" checked />
         </div>
-        <div class="input-row">
-            <label>Right support present:</label>
-            <input type="checkbox" id="rightSupportToggle" checked />
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Right support present:</label>
+            <input type="checkbox" id="rightSupportToggle" class="mr-2" checked />
         </div>
-        <div class="input-row">
-            <label>Moment of inertia (I):</label>
-            <input type="number" id="inertiaInput" step="1e-6" />
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Moment of inertia (I):</label>
+            <input type="number" id="inertiaInput" class="w-24 px-2 py-1 text-gray-900" step="1e-6" />
         </div>
         <div id="spansContainer"></div>
-        <button id="addSpanBtn">Add Span</button>
+        <button id="addSpanBtn" class="bg-green-600 text-white px-3 py-1 rounded mt-1">Add Span</button>
     </div>
 
-    <div class="section">
+    <div class="section bg-gray-800 p-4 rounded-lg shadow mb-5">
         <h2>Point Loads</h2>
         <div id="pointLoadsContainer"></div>
-        <button id="addPointLoadBtn">Add Point Load</button>
+        <button id="addPointLoadBtn" class="bg-green-600 text-white px-3 py-1 rounded mt-1">Add Point Load</button>
     </div>
 
-    <div class="section">
+    <div class="section bg-gray-800 p-4 rounded-lg shadow mb-5">
         <h2>Line Loads</h2>
         <div id="lineLoadsContainer"></div>
-        <button id="addLineLoadBtn">Add Line Load</button>
+        <button id="addLineLoadBtn" class="bg-green-600 text-white px-3 py-1 rounded mt-1">Add Line Load</button>
     </div>
 
-    <div class="section">
+    <div class="section bg-gray-800 p-4 rounded-lg shadow mb-5">
         <h2>Load Combinations</h2>
         <div id="combContainer"></div>
-        <button id="addCombBtn">Add Combination</button>
+        <button id="addCombBtn" class="bg-green-600 text-white px-3 py-1 rounded mt-1">Add Combination</button>
     </div>
 
-    <div class="section">
+    <div class="section bg-gray-800 p-4 rounded-lg shadow mb-5">
         <h2>Support Reactions</h2>
-        <pre id="reactionsOutput"></pre>
+        <pre id="reactionsOutput" class="bg-gray-700 p-2 rounded"></pre>
     </div>
     </div> <!-- end controls -->
 
-    <div id="charts">
-    <div id="selectedDisplay" class="full-width" style="font-weight:bold;"></div>
-    <div class="section full-width">
+    <div id="charts" class="flex-1 grid grid-cols-2 gap-5">
+    <div id="selectedDisplay" class="font-bold col-span-full mb-2"></div>
+    <div class="section bg-gray-800 p-4 rounded-lg shadow mb-5 col-span-full">
         <h2>Loads</h2>
-        <canvas id="loadsChart"></canvas>
+        <canvas id="loadsChart" class="w-full h-60 mt-5 bg-white border border-gray-400 p-2 rounded"></canvas>
     </div>
 
-    <div class="section full-width">
+    <div class="section bg-gray-800 p-4 rounded-lg shadow mb-5 col-span-full">
         <h2>Shear Force Diagram</h2>
-        <canvas id="shearChart"></canvas>
+        <canvas id="shearChart" class="w-full h-60 mt-5 bg-white border border-gray-400 p-2 rounded"></canvas>
     </div>
-    <div class="section full-width">
+    <div class="section bg-gray-800 p-4 rounded-lg shadow mb-5 col-span-full">
         <h2>Bending Moment Diagram</h2>
-        <canvas id="momentChart"></canvas>
+        <canvas id="momentChart" class="w-full h-60 mt-5 bg-white border border-gray-400 p-2 rounded"></canvas>
     </div>
-    <div class="section full-width">
+    <div class="section bg-gray-800 p-4 rounded-lg shadow mb-5 col-span-full">
         <h2>Deflection</h2>
-        <canvas id="deflectionChart"></canvas>
+        <canvas id="deflectionChart" class="w-full h-60 mt-5 bg-white border border-gray-400 p-2 rounded"></canvas>
     </div>
     </div> <!-- end charts -->
     </div> <!-- end container -->
     </div> <!-- end analysisTab -->
 
     <div id="designTab" class="tabcontent">
-    <div class="section">
+    <div class="section bg-gray-800 p-4 rounded-lg shadow mb-5">
         <h2>Cross-section Design</h2>
-        <div class="input-row">
-            <label>Section:</label>
-            <select id="designSectionSelect"></select>
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Section:</label>
+            <select id="designSectionSelect" class="w-24 px-2 py-1 text-gray-900"></select>
         </div>
-        <div class="input-row">
-            <label>Steel grade:</label>
-            <select id="steelSelect">
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Steel grade:</label>
+            <select id="steelSelect" class="w-24 px-2 py-1 text-gray-900">
                 <option value="235">S235</option>
                 <option value="355" selected>S355</option>
                 <option value="450">S450</option>
             </select>
         </div>
-        <div class="input-row">
-            <label>Bending stiffness EI:</label>
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Bending stiffness EI:</label>
             <span id="designEI">-</span>
         </div>
-        <div class="input-row">
-            <label>Bending resistance M,Rd:</label>
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Bending resistance M,Rd:</label>
             <span id="designMRd">-</span>
         </div>
-        <div class="input-row">
-            <label>Shear resistance V,Rd:</label>
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Shear resistance V,Rd:</label>
             <span id="designVRd">-</span>
         </div>
-        <div class="input-row">
-            <label>Bending utilization:</label>
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Bending utilization:</label>
             <span id="designMomentUtil">-</span>
         </div>
-        <div class="input-row">
-            <label>Shear utilization:</label>
+        <div class="input-row mb-2 flex items-center">
+            <label class="inline-block w-36">Shear utilization:</label>
             <span id="designShearUtil">-</span>
         </div>
-        <div class="input-row">
-            <canvas id="sectionCanvas" width="300" height="200" style="border:1px solid #ccc;"></canvas>
+        <div class="input-row mb-2 flex items-center">
+            <canvas id="sectionCanvas" width="300" height="200" class="w-full h-60 mt-5 bg-white border border-gray-400 p-2 rounded"></canvas>
         </div>
-        <div class="input-row" id="designEquations"></div>
+        <div class="input-row mb-2 flex items-center" id="designEquations"></div>
     </div>
     </div> <!-- end designTab -->
 
@@ -253,10 +232,10 @@ function addSpan(length = 5) {
     state.spans.push({ length });
     const div = document.createElement('div');
     div.className = 'input-row';
-    div.innerHTML = `<label>Span ${idx+1} length:</label>`+
+    div.innerHTML = `<label class="inline-block w-36">Span ${idx+1} length:</label>`+
         `<input type='number' value='${length}' min='0.1' step='0.1' `+
         `onchange='state.spans[${idx}].length=parseFloat(this.value); updateSelfWeightLineLoad(); updateWholeLineLoads(); solveSelected();' />`+
-        `<button onclick='removeSpan(${idx})'>Remove</button>`;
+        `<button onclick='removeSpan(${idx})' class='bg-red-600 text-white px-2 py-1 rounded ml-2'>Remove</button>`;
     div.id = `span-${idx}`;
     document.getElementById('spansContainer').appendChild(div);
     updateSelfWeightLineLoad();
@@ -285,11 +264,11 @@ function addPointLoad(P=10,x=0,lc='LC1'){
     state.pointLoads.push({P,x,case:lc});
     const div=document.createElement('div');
     div.className='input-row';
-    div.innerHTML=`<label>Load ${idx+1} (P kN,x,case):</label>`+
+    div.innerHTML=`<label class="inline-block w-36">Load ${idx+1} (P kN,x,case):</label>`+
     `<input type='number' value='${(P/1000)}' step='0.1' onchange='state.pointLoads[${idx}].P=parseFloat(this.value)*1000; solveSelected();'/>`+
     `<input type='number' value='${x}' step='0.1' onchange='state.pointLoads[${idx}].x=parseFloat(this.value); solveSelected();'/>`+
     `<input type='text' value='${lc}' onchange='state.pointLoads[${idx}].case=this.value; updateResultsOptions(); solveSelected();'/>`+
-    `<button onclick='removePointLoad(${idx})'>Remove</button>`;
+    `<button onclick='removePointLoad(${idx})' class='bg-red-600 text-white px-2 py-1 rounded ml-2'>Remove</button>`;
     div.id=`pload-${idx}`;
     document.getElementById('pointLoadsContainer').appendChild(div);
     updateResultsOptions();
@@ -316,13 +295,13 @@ function addLineLoad(w=5,start=0,end=1,lc='LC1',whole=false){
     const div=document.createElement('div');
     div.className='input-row';
     const dis=whole?'disabled':'';
-    div.innerHTML=`<label>Line ${idx+1} (w kN/m,start,end,case):</label>`+
+    div.innerHTML=`<label class="inline-block w-36">Line ${idx+1} (w kN/m,start,end,case):</label>`+
     `<input type='number' value='${(w/1000)}' step='0.1' onchange='state.lineLoads[${idx}].w=parseFloat(this.value)*1000; solveSelected();'/>`+
     `<input id='lload-start-${idx}' type='number' value='${start}' step='0.1' ${dis} onchange='state.lineLoads[${idx}].start=parseFloat(this.value); solveSelected();'/>`+
     `<input id='lload-end-${idx}' type='number' value='${end}' step='0.1' ${dis} onchange='state.lineLoads[${idx}].end=parseFloat(this.value); solveSelected();'/>`+
     `<input type='text' value='${lc}' onchange='state.lineLoads[${idx}].case=this.value; updateResultsOptions(); solveSelected();'/>`+
-    `<label><input id='lload-whole-${idx}' type='checkbox' ${whole?'checked':''} onchange='toggleWholeLineLoad(${idx},this.checked);'/> across the whole beam</label>`+
-    `<button onclick='removeLineLoad(${idx})'>Remove</button>`;
+    `<label class="inline-block w-36"><input id='lload-whole-${idx}' type='checkbox' ${whole?'checked':''} onchange='toggleWholeLineLoad(${idx},this.checked);'/> across the whole beam</label>`+
+    `<button onclick='removeLineLoad(${idx})' class='bg-red-600 text-white px-2 py-1 rounded ml-2'>Remove</button>`;
     div.id=`lload-${idx}`;
     document.getElementById('lineLoadsContainer').appendChild(div);
     updateResultsOptions();
@@ -347,7 +326,7 @@ function rebuildLineLoads(){
             const div=document.createElement('div');
             div.className='input-row';
             div.id='lload-sw';
-            div.innerHTML=`<label>Line SW (w kN/m,start,end,case):</label>`+
+            div.innerHTML=`<label class="inline-block w-36">Line SW (w kN/m,start,end,case):</label>`+
                 `<input type='number' value='${(l.w/1000).toFixed(3)}' step='0.001' readonly />`+
                 `<input type='number' value='${l.start}' step='0.1' readonly />`+
                 `<input type='number' value='${l.end}' step='0.1' readonly />`+
@@ -378,7 +357,7 @@ function updateSelfWeightLineLoad(){
     const div=document.createElement('div');
     div.className='input-row';
     div.id='lload-sw';
-    div.innerHTML=`<label>Line SW (w kN/m,start,end,case):</label>`+
+    div.innerHTML=`<label class="inline-block w-36">Line SW (w kN/m,start,end,case):</label>`+
         `<input type='number' value='${(w/1000).toFixed(3)}' step='0.001' readonly />`+
         `<input type='number' value='0' step='0.1' readonly />`+
         `<input type='number' value='${len}' step='0.1' readonly />`+
@@ -454,7 +433,7 @@ function addCombination(name=`Comb${state.loadCombinations.length+1}`,factorsStr
     div.className='input-row';
     div.innerHTML=`<input type='text' value='${name}' onchange='state.loadCombinations[${idx}].name=this.value; updateResultsOptions();'/>`+
     `<input type='text' value='${factorsStr}' onchange='state.loadCombinations[${idx}].factors=parseFactors(this.value); solveSelected();'/>`+
-    `<button onclick='removeCombination(${idx})'>Remove</button>`;
+    `<button onclick='removeCombination(${idx})' class='bg-red-600 text-white px-2 py-1 rounded ml-2'>Remove</button>`;
     div.id=`comb-${idx}`;
     document.getElementById('combContainer').appendChild(div);
     updateResultsOptions();
@@ -944,8 +923,8 @@ function drawSectionGraphic(cs){
         ctx.strokeStyle='red';
         ctx.beginPath();
         ctx.arc(x1+r,y1+r,r,Math.PI,1.5*Math.PI);
-        ctx.arc(x2-r,y1+r,r,1.5*Math.PI,0);
-        ctx.arc(x2-r,y2-r,r,0,0.5*Math.PI);
+        ctx.arc(x2-r,y1+r,r,0,-0.5*Math.PI);
+        ctx.arc(x2-r,y2-r,r,Math.PI/2,0);
         ctx.arc(x1+r,y2-r,r,0.5*Math.PI,Math.PI);
         ctx.stroke();
     }
@@ -1012,7 +991,10 @@ function showTab(name){
     document.getElementById('analysisTab').style.display=name==='analysis'?'block':'none';
     document.getElementById('designTab').style.display=name==='design'?'block':'none';
     document.querySelectorAll('#tabs button').forEach(btn=>{
-        btn.classList.toggle('active', btn.dataset.tab===name);
+        const active = btn.dataset.tab===name;
+        btn.classList.toggle('active', active);
+        btn.classList.toggle('bg-green-600', active);
+        btn.classList.toggle('text-white', active);
     });
 }
 
