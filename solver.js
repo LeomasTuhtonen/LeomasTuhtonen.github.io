@@ -275,5 +275,5 @@ if (typeof window !== 'undefined') {
     window.computeDiagrams = computeDiagrams;
     window.setCrossSections = setCrossSections;
     window.getSelfWeightLineLoads = (spans,name)=>getSelfWeightLineLoads(spans,name);
-    window.computeSectionDesign = (name,opts)=>computeSectionDesign(name,opts);
+    window.computeSectionDesign = computeSectionDesign;
 }
