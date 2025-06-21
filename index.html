@@ -136,6 +136,14 @@
             <select id="designSectionSelect"></select>
         </div>
         <div class="input-row">
+            <label>Steel grade:</label>
+            <select id="steelSelect">
+                <option value="235">S235</option>
+                <option value="355" selected>S355</option>
+                <option value="450">S450</option>
+            </select>
+        </div>
+        <div class="input-row">
             <label>Bending stiffness EI:</label>
             <span id="designEI">-</span>
         </div>
@@ -163,6 +171,7 @@ const state = {
     E: 210e9,
     I: 1e-6,
     section: null,
+    fy: 355e6,
     includeSelfWeight: true,
     leftSupport: true,
     rightSupport: true,
@@ -223,6 +232,7 @@ function loadCrossSections(){
     }
 }
 loadCrossSections();
+populateSteelSelect();
 
 function addSpan(length = 5) {
     const idx = state.spans.length;
@@ -836,16 +846,35 @@ function populateDesignSelect(){
     updateDesignProps(sel.value);
 }
 
+function populateSteelSelect(){
+    const sel=document.getElementById('steelSelect');
+    if(!sel) return;
+    state.fy=parseFloat(sel.value)*1e6;
+    sel.onchange=function(){
+        state.fy=parseFloat(this.value)*1e6;
+        updateDesignProps(document.getElementById('designSectionSelect').value);
+    };
+}
+
 function updateDesignProps(name){
     const cs=crossSections[name];
     const EIel=document.getElementById('designEI');
     const MRdel=document.getElementById('designMRd');
     const VRdel=document.getElementById('designVRd');
     if(!cs){ EIel.textContent='-'; MRdel.textContent='-'; VRdel.textContent='-'; return; }
-    const EI=(state.E*cs.Iz_m4).toExponential(3);
+    let design=null;
+    if(window.computeSectionDesign){
+        design=computeSectionDesign(name,{fy:state.fy,E:state.E});
+    }
+    const EI=(design?design.EI:state.E*cs.Iz_m4).toExponential(3);
     EIel.textContent=EI+' N\u00b7m\u00b2';
-    MRdel.textContent='-';
-    VRdel.textContent='-';
+    if(design){
+        MRdel.textContent=design.MRd.toExponential(3)+' N\u00b7m';
+        VRdel.textContent=design.VRd.toExponential(3)+' N';
+    } else {
+        MRdel.textContent='-';
+        VRdel.textContent='-';
+    }
 }
 
 function showTab(name){
