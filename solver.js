@@ -70,6 +70,10 @@ function setCrossSections(data){
 }
 
 function getCrossSection(name){
+    if((!crossSectionMap || Object.keys(crossSectionMap).length===0) &&
+       typeof window !== 'undefined' && window.crossSectionsData){
+        crossSectionMap = window.crossSectionsData;
+    }
     return crossSectionMap ? crossSectionMap[name] : undefined;
 }
 
