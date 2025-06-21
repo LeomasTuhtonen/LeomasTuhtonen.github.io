@@ -86,6 +86,26 @@ function getSelfWeightLineLoads(spans, name){
     return loads;
 }
 
+function computeSectionDesign(name, opts){
+    const cs = typeof name === 'string' ? getCrossSection(name) : name;
+    if(!cs) return null;
+    opts = opts || {};
+    const E = opts.E !== undefined ? opts.E : 210e9;
+    const fy = opts.fy !== undefined ? opts.fy : 355e6;
+    const gammaM0 = opts.gammaM0 !== undefined ? opts.gammaM0 : 1.0;
+    const h = cs.h_mm/1000;
+    const tw = cs.tw_mm/1000;
+    const tf = cs.tf_mm/1000;
+    const I = cs.Iz_m4;
+    const EI = E*I;
+    const W = I/(h/2);
+    const MRd = fy*W/gammaM0;
+    const hw = h - 2*tf;
+    const Av = hw*tw;
+    const VRd = Av*fy/(Math.sqrt(3)*gammaM0);
+    return {EI, MRd, VRd};
+}
+
 function computeResults(state){
     if(!state.spans || state.spans.length===0) return null;
     const maxDist = state.maxNodeDist || 1;
@@ -243,7 +263,7 @@ function computeDiagrams(state,nodes,reactions){
 
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { computeResults, computeDiagrams, setCrossSections, getSelfWeightLineLoads, getCrossSection };
+    module.exports = { computeResults, computeDiagrams, setCrossSections, getSelfWeightLineLoads, getCrossSection, computeSectionDesign };
 }
 
 if (typeof window !== 'undefined') {
@@ -251,4 +271,5 @@ if (typeof window !== 'undefined') {
     window.computeDiagrams = computeDiagrams;
     window.setCrossSections = setCrossSections;
     window.getSelfWeightLineLoads = (spans,name)=>getSelfWeightLineLoads(spans,name);
+    window.computeSectionDesign = (name,opts)=>computeSectionDesign(name,opts);
 }
