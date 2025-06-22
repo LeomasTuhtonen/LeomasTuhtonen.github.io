@@ -90,6 +90,21 @@ function getSelfWeightLineLoads(spans, name){
     return loads;
 }
 
+function computeInertia(cs){
+    if(!cs) return 0;
+    const h = cs.h_mm;
+    const b = cs.b_mm;
+    const tw = cs.tw_mm;
+    const tf = cs.tf_mm;
+    if(h===undefined || b===undefined || tw===undefined || tf===undefined) return cs.Iz_m4 || 0;
+    const hw = h - 2*tf;
+    const Iweb = tw*Math.pow(hw,3)/12;
+    const If = b*Math.pow(tf,3)/12;
+    const d = hw/2 + tf/2;
+    const Icalc = (2*(If + b*tf*d*d) + Iweb)/1e12; // to m^4
+    return Icalc;
+}
+
 function computeSectionDesign(name, opts){
     const cs = typeof name === 'string' ? getCrossSection(name) : name;
     if(!cs) return null;
@@ -100,7 +115,7 @@ function computeSectionDesign(name, opts){
     const h = cs.h_mm/1000;
     const tw = cs.tw_mm/1000;
     const tf = cs.tf_mm/1000;
-    const I = cs.Iz_m4;
+    let I = computeInertia(cs);
     const EI = E*I;
     const W = I/(h/2);
     const MRd = fy*W/gammaM0;
@@ -117,7 +132,7 @@ function computeResults(state){
     let I = state.I;
     if(I===undefined && state.section){
         const cs=getCrossSection(state.section);
-        if(cs) I=cs.Iz_m4;
+        if(cs) I=computeInertia(cs);
     }
     if(I===undefined) I=1e-6;
 
@@ -267,7 +282,7 @@ function computeDiagrams(state,nodes,reactions){
 
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { computeResults, computeDiagrams, setCrossSections, getSelfWeightLineLoads, getCrossSection, computeSectionDesign };
+    module.exports = { computeResults, computeDiagrams, setCrossSections, getSelfWeightLineLoads, getCrossSection, computeSectionDesign, computeInertia };
 }
 
 if (typeof window !== 'undefined') {
@@ -276,4 +291,5 @@ if (typeof window !== 'undefined') {
     window.setCrossSections = setCrossSections;
     window.getSelfWeightLineLoads = (spans,name)=>getSelfWeightLineLoads(spans,name);
     window.computeSectionDesign = computeSectionDesign;
+    window.computeInertia = computeInertia;
 }
