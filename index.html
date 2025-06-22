@@ -921,10 +921,13 @@ function drawSectionGraphic(cs){
     const ctx=canvas.getContext('2d');
     const w=canvas.width, h=canvas.height;
     ctx.clearRect(0,0,w,h);
-    const margin=10;
+    const margin=20; // provide room for dimension lines
     const scale=Math.min((w-2*margin)/cs.b_mm,(h-2*margin)/cs.h_mm);
+    // offset in canvas coordinates where the scaled section starts
+    const offsetX=(w-cs.b_mm*scale)/2;
+    const offsetY=(h-cs.h_mm*scale)/2;
     ctx.save();
-    ctx.translate((w-cs.b_mm*scale)/2,(h-cs.h_mm*scale)/2);
+    ctx.translate(offsetX,offsetY);
     ctx.scale(scale,scale);
     ctx.fillStyle='#ddd';
     ctx.strokeStyle='black';
@@ -950,6 +953,55 @@ function drawSectionGraphic(cs){
         ctx.stroke();
     }
     ctx.restore();
+
+    // draw dimension lines in canvas coordinates
+    ctx.strokeStyle='blue';
+    ctx.fillStyle='blue';
+    ctx.lineWidth=1;
+    const bScaled=cs.b_mm*scale;
+    const hScaled=cs.h_mm*scale;
+    const dimOffset=8; // px offset from section
+
+    // width dimension line below section
+    const yDim=offsetY+hScaled+dimOffset;
+    ctx.beginPath();
+    ctx.moveTo(offsetX, yDim);
+    ctx.lineTo(offsetX+bScaled, yDim);
+    ctx.stroke();
+    // arrowheads
+    ctx.beginPath();
+    ctx.moveTo(offsetX, yDim-4);
+    ctx.lineTo(offsetX-6, yDim);
+    ctx.lineTo(offsetX, yDim+4);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(offsetX+bScaled, yDim-4);
+    ctx.lineTo(offsetX+bScaled+6, yDim);
+    ctx.lineTo(offsetX+bScaled, yDim+4);
+    ctx.fill();
+    ctx.textAlign='center';
+    ctx.textBaseline='bottom';
+    ctx.fillText(cs.b_mm+" mm", offsetX+bScaled/2, yDim-6);
+
+    // height dimension line to the right of section
+    const xDim=offsetX+bScaled+dimOffset;
+    ctx.beginPath();
+    ctx.moveTo(xDim, offsetY);
+    ctx.lineTo(xDim, offsetY+hScaled);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(xDim-4, offsetY);
+    ctx.lineTo(xDim, offsetY-6);
+    ctx.lineTo(xDim+4, offsetY);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(xDim-4, offsetY+hScaled);
+    ctx.lineTo(xDim, offsetY+hScaled+6);
+    ctx.lineTo(xDim+4, offsetY+hScaled);
+    ctx.fill();
+    ctx.textAlign='left';
+    ctx.textBaseline='middle';
+    ctx.fillText(cs.h_mm+" mm", xDim+4, offsetY+hScaled/2);
 }
 
 function updateDesignEquations(design){
