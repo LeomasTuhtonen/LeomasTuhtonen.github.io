@@ -924,22 +924,52 @@ function populateSteelSelect(){
 }
 
 function computeSectionOutline(cs){
-    const b=cs.b_mm, h=cs.h_mm, tw=cs.tw_mm, tf=cs.tf_mm;
-    return [
-        {x:0, y:0},
-        {x:b, y:0},
-        {x:b, y:tf},
-        {x:b/2+tw/2, y:tf},
-        {x:b/2+tw/2, y:h-tf},
-        {x:b, y:h-tf},
-        {x:b, y:h},
-        {x:0, y:h},
-        {x:0, y:h-tf},
-        {x:b/2-tw/2, y:h-tf},
-        {x:b/2-tw/2, y:tf},
-        {x:0, y:tf},
-        {x:0, y:0}
-    ];
+    const b=cs.b_mm, h=cs.h_mm, tw=cs.tw_mm, tf=cs.tf_mm, r=cs.r_mm||0;
+    const rw=b/2+tw/2, lw=b/2-tw/2;
+    const steps=4;
+    const pts=[];
+    function arc(cx,cy,rad,a1,a2){
+        for(let i=0;i<=steps;i++){
+            const t=a1+(a2-a1)*i/steps;
+            pts.push({x:cx+rad*Math.cos(t),y:cy+rad*Math.sin(t)});
+        }
+    }
+    pts.push({x:0,y:0});
+    pts.push({x:b,y:0});
+    pts.push({x:b,y:tf});
+    if(r>0){
+        pts.push({x:rw+r,y:tf});
+        arc(rw,tf,r,0,Math.PI/2);
+    } else {
+        pts.push({x:rw,y:tf});
+    }
+    pts.push({x:rw,y:h-tf-r});
+    if(r>0){
+        arc(rw,h-tf,r,-Math.PI/2,0);
+        pts.push({x:rw+r,y:h-tf});
+    } else {
+        pts.push({x:rw,y:h-tf});
+    }
+    pts.push({x:b,y:h-tf});
+    pts.push({x:b,y:h});
+    pts.push({x:0,y:h});
+    pts.push({x:0,y:h-tf});
+    if(r>0){
+        pts.push({x:lw-r,y:h-tf});
+        arc(lw,h-tf,r,Math.PI,1.5*Math.PI);
+    } else {
+        pts.push({x:lw,y:h-tf});
+    }
+    pts.push({x:lw,y:tf+r});
+    if(r>0){
+        arc(lw,tf,r,1.5*Math.PI,Math.PI);
+        pts.push({x:lw-r,y:tf});
+    } else {
+        pts.push({x:lw,y:tf});
+    }
+    pts.push({x:0,y:tf});
+    pts.push({x:0,y:0});
+    return pts;
 }
 
 function drawSectionGraphic(cs){
@@ -951,9 +981,15 @@ function drawSectionGraphic(cs){
     if(!div || !cs){ if(div) div.innerHTML=''; return; }
     const margin=Math.max(cs.h_mm,cs.b_mm)*0.05;
     const bbox=[-margin, cs.h_mm+margin, cs.b_mm+margin, -margin];
-    sectionBoard=JXG.JSXGraph.initBoard('sectionBox',{boundingbox:bbox,axis:false,showNavigation:false,showCopyright:false});
+    sectionBoard=JXG.JSXGraph.initBoard('sectionBox',{
+        boundingbox:bbox,axis:false,showNavigation:false,keepaspectratio:true,
+        copyright:false
+    });
     const points=computeSectionOutline(cs).map(p=>[p.x,p.y]);
-    sectionBoard.create('polygon', points,{hasInnerPoints:false,fillColor:'#ccc',strokeColor:'black'});
+    const poly=sectionBoard.create('polygon', points,{hasInnerPoints:false,fillColor:'#ccc',strokeColor:'black'});
+    if(poly && poly.vertices){
+        poly.vertices.forEach(v=>v.setAttribute({visible:false,fixed:true}));
+    }
 }
 
 function updateDesignEquations(design){
