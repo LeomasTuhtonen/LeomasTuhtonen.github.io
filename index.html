@@ -51,7 +51,7 @@
         <h2>Beam Setup</h2>
         <div class="input-row">
             <label>Max node distance:</label>
-            <input type="number" id="maxNodeDist" value="1" min="0.1" step="0.1" />
+            <input type="number" id="maxNodeDist" value="0.2" min="0.1" step="0.1" />
         </div>
         <div class="input-row">
             <label>Cross-section:</label>
@@ -164,13 +164,15 @@
             <span id="designShearUtil">-</span>
         </div>
         <div class="input-row">
-            <canvas id="sectionCanvas" width="300" height="200" style="border:1px solid #ccc;"></canvas>
+            <div id="sectionBox" class="jxgbox" style="width:300px;height:200px;border:1px solid #ccc;"></div>
         </div>
         <div class="input-row" id="designEquations"></div>
     </div>
     </div> <!-- end designTab -->
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraph.css" />
+    <script src="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraphcore.js"></script>
     <script src="./cross_sections_data.js"></script>
     <script src="./solver.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
@@ -180,7 +182,7 @@ const state = {
     spans: [],
     pointLoads: [],
     lineLoads: [],
-    maxNodeDist: 1,
+    maxNodeDist: 0.2,
     E: 210e9,
     I: 1e-6,
     section: null,
@@ -194,7 +196,7 @@ const state = {
 };
 
 let crossSections = {};
-let sectionChart = null;
+let sectionBoard = null;
 function populateSectionSelect(){
     const sel = document.getElementById("sectionSelect");
     sel.innerHTML='';
@@ -318,9 +320,9 @@ function addLineLoad(w=5,start=0,end=1,lc='LC1',whole=false){
     div.className='input-row';
     const dis=whole?'disabled':'';
     div.innerHTML=`<label>Line ${idx+1} (w kN/m,start,end,case):</label>`+
-    `<input type='number' value='${(w/1000)}' step='0.1' onchange='state.lineLoads[${idx}].w=parseFloat(this.value)*1000; solveSelected();'/>`+
-    `<input id='lload-start-${idx}' type='number' value='${start}' step='0.1' ${dis} onchange='state.lineLoads[${idx}].start=parseFloat(this.value); solveSelected();'/>`+
-    `<input id='lload-end-${idx}' type='number' value='${end}' step='0.1' ${dis} onchange='state.lineLoads[${idx}].end=parseFloat(this.value); solveSelected();'/>`+
+    `<input type='number' value='${(w/1000)}' step='0.1' oninput='state.lineLoads[${idx}].w=parseFloat(this.value)*1000; solveSelected();'/>`+
+    `<input id='lload-start-${idx}' type='number' value='${start}' step='0.1' ${dis} oninput='state.lineLoads[${idx}].start=parseFloat(this.value); solveSelected();'/>`+
+    `<input id='lload-end-${idx}' type='number' value='${end}' step='0.1' ${dis} oninput='state.lineLoads[${idx}].end=parseFloat(this.value); solveSelected();'/>`+
     `<input type='text' value='${lc}' onchange='state.lineLoads[${idx}].case=this.value; updateResultsOptions(); solveSelected();'/>`+
     `<label><input id='lload-whole-${idx}' type='checkbox' ${whole?'checked':''} onchange='toggleWholeLineLoad(${idx},this.checked);'/> across the whole beam</label>`+
     `<button onclick='removeLineLoad(${idx})'>Remove</button>`;
@@ -525,8 +527,12 @@ function updateResultsOptions(){
         opt.value='envelope'; opt.textContent='Envelope';
         sel.appendChild(opt);
     }
-    sel.value=prev||sel.options[0]?.value;
-    if(!sel.value && sel.options.length>0) sel.selectedIndex=0;
+    let setVal = prev && Array.from(sel.options).some(o=>o.value===prev) ? prev : null;
+    if(!setVal){
+        const lc1Opt=Array.from(sel.options).find(o=>o.value==='case:LC1');
+        setVal = lc1Opt ? 'case:LC1' : (sel.options[0]?.value||'');
+    }
+    sel.value=setVal;
     const val=sel.value||'';
     if(val.startsWith('case:')) state.selected={type:'case',name:val.slice(5)};
     else if(val.startsWith('comb:')) state.selected={type:'comb',index:parseInt(val.slice(5))};
@@ -719,23 +725,24 @@ function plotDiagrams(nodes,reactions,loads,supportIndices){
     for(let i=0;i<events.length;i++){
         const e=events[i];
         const dx=e.x-xs[xs.length-1];
-        const wTotal=activeWs.reduce((a,b)=>a+b,0);
+        const wBefore=activeWs.reduce((a,b)=>a+b,0);
         const shearBefore=shear;
-        shear-=wTotal*dx;
-        moment+=shearBefore*dx - 0.5*wTotal*dx*dx;
+        shear-=wBefore*dx;
+        moment+=shearBefore*dx - 0.5*wBefore*dx*dx;
         xs.push(e.x); shearVals.push(shear); momentVals.push(moment);
-
-        loadXs.push(e.x); loadVals.push(wTotal);
+        loadXs.push(e.x); loadVals.push(wBefore);
 
         if(e.P){
             shear-=e.P;
             xs.push(e.x); shearVals.push(shear); momentVals.push(moment);
         }
-        if(e.start){activeWs.push(e.w);}
+        if(e.start){activeWs.push(e.w);} 
         if(e.end){
             const idx=activeWs.indexOf(e.w);
             if(idx>-1) activeWs.splice(idx,1);
         }
+        const wAfter=activeWs.reduce((a,b)=>a+b,0);
+        loadXs.push(e.x); loadVals.push(wAfter);
     }
     const lastX=xs[xs.length-1];
     const lastL=loadXs[loadXs.length-1];
@@ -936,20 +943,17 @@ function computeSectionOutline(cs){
 }
 
 function drawSectionGraphic(cs){
-    const canvas=document.getElementById('sectionCanvas');
-    if(sectionChart){
-        sectionChart.destroy();
-        sectionChart=null;
+    const div=document.getElementById('sectionBox');
+    if(sectionBoard){
+        JXG.JSXGraph.freeBoard(sectionBoard);
+        sectionBoard=null;
     }
-    if(!canvas || !cs){ if(canvas) canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height); return; }
-    const outline=computeSectionOutline(cs);
-    const datasets=[{data:outline,fill:true,borderColor:'black',backgroundColor:'rgba(200,200,200,0.5)',showLine:true,pointRadius:0}];
-    const ctx=canvas.getContext('2d');
-    sectionChart=new Chart(ctx,{type:'line',data:{datasets},options:{
-        plugins:{legend:{display:false}},
-        scales:{x:{type:'linear',display:false},y:{type:'linear',display:false}},
-        aspectRatio:canvas.width/canvas.height
-    }});
+    if(!div || !cs){ if(div) div.innerHTML=''; return; }
+    const margin=Math.max(cs.h_mm,cs.b_mm)*0.05;
+    const bbox=[-margin, cs.h_mm+margin, cs.b_mm+margin, -margin];
+    sectionBoard=JXG.JSXGraph.initBoard('sectionBox',{boundingbox:bbox,axis:false,showNavigation:false,showCopyright:false});
+    const points=computeSectionOutline(cs).map(p=>[p.x,p.y]);
+    sectionBoard.create('polygon', points,{hasInnerPoints:false,fillColor:'#ccc',strokeColor:'black'});
 }
 
 function updateDesignEquations(design){
