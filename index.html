@@ -912,74 +912,140 @@ function populateSteelSelect(){
 }
 
 function computeSectionOutline(cs){
-    const b=cs.b_mm, h=cs.h_mm, tw=cs.tw_mm, tf=cs.tf_mm, r=cs.r_mm||0;
-    const rw=b/2+tw/2, lw=b/2-tw/2;
-    const steps=4;
-    const pts=[];
-    function arc(cx,cy,rad,a1,a2){
-        for(let i=0;i<=steps;i++){
-            const t=a1+(a2-a1)*i/steps;
-            pts.push({x:cx+rad*Math.cos(t),y:cy+rad*Math.sin(t)});
+    const b = cs.b_mm, h = cs.h_mm, tw = cs.tw_mm, tf = cs.tf_mm, r = cs.r_mm || 0;
+    const rw = b / 2 + tw / 2, lw = b / 2 - tw / 2;
+    const steps = 6;
+    const pts = [];
+    function arc(cx, cy, rad, a1, a2){
+        for(let i = 0; i <= steps; i++){
+            const t = a1 + (a2 - a1) * i / steps;
+            pts.push({x: cx + rad * Math.cos(t), y: cy + rad * Math.sin(t)});
         }
     }
-    pts.push({x:0,y:0});
-    pts.push({x:b,y:0});
-    pts.push({x:b,y:tf});
-    if(r>0){
-        pts.push({x:rw+r,y:tf});
-        arc(rw,tf,r,0,Math.PI/2);
+
+    pts.push({x: 0, y: 0});
+    pts.push({x: b, y: 0});
+    pts.push({x: b, y: tf});
+    if(r > 0){
+        pts.push({x: rw + r, y: tf});
+        arc(rw + r, tf + r, r, 1.5 * Math.PI, Math.PI);
+        pts.push({x: rw, y: tf + r});
     } else {
-        pts.push({x:rw,y:tf});
+        pts.push({x: rw, y: tf});
     }
-    pts.push({x:rw,y:h-tf-r});
-    if(r>0){
-        arc(rw,h-tf,r,-Math.PI/2,0);
-        pts.push({x:rw+r,y:h-tf});
+    pts.push({x: rw, y: h - tf - r});
+    if(r > 0){
+        arc(rw + r, h - tf - r, r, Math.PI, Math.PI / 2);
+        pts.push({x: rw + r, y: h - tf});
     } else {
-        pts.push({x:rw,y:h-tf});
+        pts.push({x: rw, y: h - tf});
     }
-    pts.push({x:b,y:h-tf});
-    pts.push({x:b,y:h});
-    pts.push({x:0,y:h});
-    pts.push({x:0,y:h-tf});
-    if(r>0){
-        pts.push({x:lw-r,y:h-tf});
-        arc(lw,h-tf,r,Math.PI,1.5*Math.PI);
+    pts.push({x: b, y: h - tf});
+    pts.push({x: b, y: h});
+    pts.push({x: 0, y: h});
+    pts.push({x: 0, y: h - tf});
+    if(r > 0){
+        pts.push({x: lw - r, y: h - tf});
+        arc(lw - r, h - tf - r, r, Math.PI / 2, 0);
+        pts.push({x: lw, y: h - tf - r});
     } else {
-        pts.push({x:lw,y:h-tf});
+        pts.push({x: lw, y: h - tf});
     }
-    pts.push({x:lw,y:tf+r});
-    if(r>0){
-        arc(lw,tf,r,Math.PI/2,Math.PI);
-        pts.push({x:lw-r,y:tf});
+    pts.push({x: lw, y: tf + r});
+    if(r > 0){
+        arc(lw - r, tf + r, r, 0, -Math.PI / 2);
+        pts.push({x: lw - r, y: tf});
     } else {
-        pts.push({x:lw,y:tf});
+        pts.push({x: lw, y: tf});
     }
-    pts.push({x:0,y:tf});
-    pts.push({x:0,y:0});
+    pts.push({x: 0, y: tf});
+    pts.push({x: 0, y: 0});
     return pts;
 }
 
 function drawSectionGraphic(cs){
-    const svg=document.getElementById('sectionSvg');
-    if(!svg){return;}
-    svg.innerHTML='';
-    if(!cs){return;}
-    const width=svg.clientWidth;
-    const height=svg.clientHeight;
-    const margin=Math.max(cs.h_mm,cs.b_mm)*0.05;
-    const xScale=d3.scaleLinear()
-        .domain([-margin, cs.b_mm+margin])
-        .range([0,width]);
-    const yScale=d3.scaleLinear()
-        .domain([cs.h_mm+margin,-margin])
-        .range([0,height]);
-    const points=computeSectionOutline(cs).map(p=>[xScale(p.x),yScale(p.y)]);
-    d3.select(svg)
+    const svg = document.getElementById('sectionSvg');
+    if (!svg) { return; }
+    svg.innerHTML = '';
+    if (!cs) { return; }
+
+    const width = svg.clientWidth;
+    const height = svg.clientHeight;
+    const margin = Math.max(cs.h_mm, cs.b_mm) * 0.1;
+
+    const scale = Math.min(
+        (width - 2 * margin) / cs.b_mm,
+        (height - 2 * margin) / cs.h_mm
+    );
+    const x0 = (width - cs.b_mm * scale) / 2;
+    const y0 = (height - cs.h_mm * scale) / 2;
+    const mapX = x => x0 + x * scale;
+    const mapY = y => height - (y0 + y * scale);
+
+    const points = computeSectionOutline(cs).map(p => [mapX(p.x), mapY(p.y)]);
+    const svgSel = d3.select(svg);
+    svgSel
         .append('polygon')
-        .attr('points', points.map(p=>p.join(',')).join(' '))
-        .attr('fill','#ccc')
-        .attr('stroke','black');
+        .attr('points', points.map(p => p.join(',')).join(' '))
+        .attr('fill', '#ccc')
+        .attr('stroke', 'black');
+
+    // arrow marker for dimension lines
+    const defs = svgSel.append('defs');
+    defs
+        .append('marker')
+        .attr('id', 'dimArrow')
+        .attr('viewBox', '0 0 10 10')
+        .attr('refX', 5)
+        .attr('refY', 5)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M 0 0 L 10 5 L 0 10 z')
+        .attr('fill', 'black');
+
+    const dimAttrs = {
+        stroke: 'black',
+        'stroke-width': 1,
+        'marker-start': 'url(#dimArrow)',
+        'marker-end': 'url(#dimArrow)'
+    };
+
+    const bottomY = mapY(0) + 20;
+    svgSel.append('line')
+        .attr('x1', mapX(0))
+        .attr('y1', bottomY)
+        .attr('x2', mapX(cs.b_mm))
+        .attr('y2', bottomY)
+        .attr('stroke', dimAttrs.stroke)
+        .attr('stroke-width', dimAttrs['stroke-width'])
+        .attr('marker-start', dimAttrs['marker-start'])
+        .attr('marker-end', dimAttrs['marker-end']);
+    svgSel.append('text')
+        .attr('x', (mapX(0) + mapX(cs.b_mm)) / 2)
+        .attr('y', bottomY - 4)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', 12)
+        .text(cs.b_mm + ' mm');
+
+    const leftX = mapX(0) - 20;
+    svgSel.append('line')
+        .attr('x1', leftX)
+        .attr('y1', mapY(0))
+        .attr('x2', leftX)
+        .attr('y2', mapY(cs.h_mm))
+        .attr('stroke', dimAttrs.stroke)
+        .attr('stroke-width', dimAttrs['stroke-width'])
+        .attr('marker-start', dimAttrs['marker-start'])
+        .attr('marker-end', dimAttrs['marker-end']);
+    svgSel.append('text')
+        .attr('x', leftX - 4)
+        .attr('y', (mapY(0) + mapY(cs.h_mm)) / 2)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', 12)
+        .attr('transform', `rotate(-90 ${leftX - 4}, ${(mapY(0) + mapY(cs.h_mm)) / 2})`)
+        .text(cs.h_mm + ' mm');
 }
 
 function updateDesignEquations(design){
