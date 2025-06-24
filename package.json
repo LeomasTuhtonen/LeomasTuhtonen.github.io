@@ -4,7 +4,8 @@
   "scripts": {
     "test": "node test/test.js",
     "lint": "eslint .",
-    "test:integration": "node test/integration.js"
+    "test:integration": "node test/integration.js",
+    "lint:strict": "eslint ."
   },
   "devDependencies": {
     "eslint": "^8.56.0"
