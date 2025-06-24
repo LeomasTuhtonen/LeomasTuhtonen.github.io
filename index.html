@@ -164,15 +164,14 @@
             <span id="designShearUtil">-</span>
         </div>
         <div class="input-row">
-            <div id="sectionBox" class="jxgbox" style="width:300px;height:200px;border:1px solid #ccc;"></div>
+            <svg id="sectionSvg" width="300" height="200" style="border:1px solid #ccc;"></svg>
         </div>
         <div class="input-row" id="designEquations"></div>
     </div>
     </div> <!-- end designTab -->
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraph.css" />
-    <script src="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraphcore.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script src="./cross_sections_data.js"></script>
     <script src="./solver.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
@@ -196,7 +195,6 @@ const state = {
 };
 
 let crossSections = {};
-let sectionBoard = null;
 function populateSectionSelect(){
     const sel = document.getElementById("sectionSelect");
     sel.innerHTML='';
@@ -963,23 +961,25 @@ function computeSectionOutline(cs){
 }
 
 function drawSectionGraphic(cs){
-    const div=document.getElementById('sectionBox');
-    if(sectionBoard){
-        JXG.JSXGraph.freeBoard(sectionBoard);
-        sectionBoard=null;
-    }
-    if(!div || !cs){ if(div) div.innerHTML=''; return; }
+    const svg=document.getElementById('sectionSvg');
+    if(!svg){return;}
+    svg.innerHTML='';
+    if(!cs){return;}
+    const width=svg.clientWidth;
+    const height=svg.clientHeight;
     const margin=Math.max(cs.h_mm,cs.b_mm)*0.05;
-    const bbox=[-margin, cs.h_mm+margin, cs.b_mm+margin, -margin];
-    sectionBoard=JXG.JSXGraph.initBoard('sectionBox',{
-        boundingbox:bbox,axis:false,showNavigation:false,keepaspectratio:true,
-        copyright:false
-    });
-    const points=computeSectionOutline(cs).map(p=>[p.x,p.y]);
-    const poly=sectionBoard.create('polygon', points,{hasInnerPoints:false,fillColor:'#ccc',strokeColor:'black'});
-    if(poly && poly.vertices){
-        poly.vertices.forEach(v=>v.setAttribute({visible:false,fixed:true}));
-    }
+    const xScale=d3.scaleLinear()
+        .domain([-margin, cs.b_mm+margin])
+        .range([0,width]);
+    const yScale=d3.scaleLinear()
+        .domain([cs.h_mm+margin,-margin])
+        .range([0,height]);
+    const points=computeSectionOutline(cs).map(p=>[xScale(p.x),yScale(p.y)]);
+    d3.select(svg)
+        .append('polygon')
+        .attr('points', points.map(p=>p.join(',')).join(' '))
+        .attr('fill','#ccc')
+        .attr('stroke','black');
 }
 
 function updateDesignEquations(design){
