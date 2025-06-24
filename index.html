@@ -369,26 +369,16 @@ function updateSelfWeightLineLoad(){
     const existing=document.getElementById('lload-sw');
     if(existing) existing.remove();
 
-    if(!state.includeSelfWeight || !state.section) {
-        updateResultsOptions();
-        return;
+    if(state.includeSelfWeight && state.section){
+        const cs=crossSections[state.section];
+        if(cs){
+            const w=(cs.gk_kg_per_m*9.81); // N/m
+            const len=state.spans.reduce((a,s)=>a+(typeof s==='number'?s:s.length),0);
+            state.lineLoads.push({w,start:0,end:len,case:'SW',autoSW:true});
+        }
     }
-    const cs=crossSections[state.section];
-    if(!cs) { updateResultsOptions(); return; }
-    const w=(cs.gk_kg_per_m*9.81); // N/m
-    const len=state.spans.reduce((a,s)=>a+(typeof s==='number'?s:s.length),0);
-    state.lineLoads.push({w,start:0,end:len,case:'SW',autoSW:true});
-    const div=document.createElement('div');
-    div.className='input-row';
-    div.id='lload-sw';
-    div.innerHTML=`<label>Line SW (w kN/m,start,end,case):</label>`+
-        `<input type='number' value='${(w/1000).toFixed(3)}' step='0.001' readonly />`+
-        `<input type='number' value='0' step='0.1' readonly />`+
-        `<input type='number' value='${len}' step='0.1' readonly />`+
-        `<input type='text' value='SW' readonly />`;
-    document.getElementById('lineLoadsContainer').appendChild(div);
-    updateResultsOptions();
-    updateWholeLineLoads();
+    rebuildLineLoads();
+    solveSelected();
 }
 
 function getBeamLength(){
@@ -962,7 +952,7 @@ function computeSectionOutline(cs){
     }
     pts.push({x:lw,y:tf+r});
     if(r>0){
-        arc(lw,tf,r,1.5*Math.PI,Math.PI);
+        arc(lw,tf,r,Math.PI/2,Math.PI);
         pts.push({x:lw-r,y:tf});
     } else {
         pts.push({x:lw,y:tf});
