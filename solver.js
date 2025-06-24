@@ -96,7 +96,8 @@ function computeInertia(cs){
     const b = cs.b_mm;
     const tw = cs.tw_mm;
     const tf = cs.tf_mm;
-    if(h===undefined || b===undefined || tw===undefined || tf===undefined) return cs.Iz_m4 || 0;
+    if(h===undefined || b===undefined || tw===undefined || tf===undefined)
+        return cs.I_y !== undefined ? cs.I_y : (cs.Iz_m4 !== undefined ? cs.Iz_m4 : (cs.Iy_m4 !== undefined ? cs.Iy_m4 : 0));
     const hw = h - 2*tf;
     const Iweb = tw*Math.pow(hw,3)/12;
     const If = b*Math.pow(tf,3)/12;
