@@ -5,9 +5,11 @@
     "test": "node test/test.js",
     "lint": "eslint .",
     "test:integration": "node test/integration.js",
-    "lint:strict": "eslint ."
+    "lint:strict": "eslint .",
+    "test:smoke": "node ./scripts/run-smoke-tests.js"
   },
   "devDependencies": {
-    "eslint": "^8.56.0"
+    "eslint": "^8.56.0",
+    "puppeteer": "^21.3.8"
   }
 }

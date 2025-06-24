@@ -4,8 +4,18 @@ export default [
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: 'module',
-      globals: { window: 'readonly', document: 'readonly' }
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        process: 'readonly',
+        console: 'readonly'
+      }
     },
-    rules: {}
+    rules: {
+      'no-use-before-define': 'error',
+      'no-undef': 'error'
+    }
   }
 ];

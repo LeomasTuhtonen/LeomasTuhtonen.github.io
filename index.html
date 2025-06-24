@@ -194,6 +194,7 @@ const state = {
 };
 
 let crossSections = {};
+let sectionChart = null;
 function populateSectionSelect(){
     const sel = document.getElementById("sectionSelect");
     sel.innerHTML='';
@@ -773,7 +774,6 @@ function plotDeflection(nodes,U){
 }
 
 let shearChart=null,momentChart=null,deflectionChart=null,loadChart=null;
-let sectionChart=null;
 const reactionPlugin={
     id:'reactionPlugin',
     afterDatasetsDraw(chart,args,opts){
