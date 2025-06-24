@@ -2,6 +2,11 @@
   "name": "structural-calc",
   "version": "1.0.0",
   "scripts": {
-    "test": "node test/test.js"
+    "test": "node test/test.js",
+    "lint": "eslint .",
+    "test:integration": "node test/integration.js"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0"
   }
 }
