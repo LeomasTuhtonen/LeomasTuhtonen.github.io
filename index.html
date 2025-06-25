@@ -159,9 +159,24 @@
                 <option value="450">S450</option>
             </select>
         </div>
+        <div class="input-row" id="timberGradeRow">
+            <label>Timber grade:</label>
+            <select id="timberSelect">
+                <option value="C24" selected>C24</option>
+                <option value="GL30c">GL30c</option>
+            </select>
+        </div>
         <div class="input-row">
             <label>Bending stiffness EI:</label>
             <span id="designEI">-</span>
+        </div>
+        <div class="input-row">
+            <label>Section modulus W:</label>
+            <span id="designW">-</span>
+        </div>
+        <div class="input-row">
+            <label>Safety factor γ:</label>
+            <span id="designGamma">-</span>
         </div>
         <div class="input-row">
             <label>Bending resistance M,Rd:</label>
@@ -216,6 +231,10 @@ const state = {
 let steelSections = {};
 let timberSections = {};
 let crossSections = {};
+const timberGrades = {
+    C24: {E:11e9,fm_k:24e6,fv_k:4e6},
+    GL30c: {E:13e9,fm_k:30e6,fv_k:4e6}
+};
 function populateSectionSelect(){
     const sel = document.getElementById("sectionSelect");
     sel.innerHTML='';
@@ -245,6 +264,8 @@ function setMaterial(mat){
     if(window.setCrossSections) window.setCrossSections(crossSections);
     populateSectionSelect();
     populateDesignSelect();
+    if(mat==='timber') populateTimberSelect();
+    else populateSteelSelect();
     const first = Object.keys(crossSections)[0];
     if(first){
         state.section = first;
@@ -269,6 +290,7 @@ function loadCrossSections(){
 }
 loadCrossSections();
 populateSteelSelect();
+populateTimberSelect();
 updateMaterialUI();
 
 function addSpan(length = 5) {
@@ -566,19 +588,31 @@ document.getElementById('resultsSelect').onchange=function(){
     solveSelected();
 };
 function updateMaterialUI(){
-    const row=document.getElementById('steelSelect').parentElement;
-    if(row) row.style.display=state.material==='steel'?'flex':'none';
+    const steelRow=document.getElementById('steelSelect').parentElement;
+    if(steelRow) steelRow.style.display=state.material==='steel'?'flex':'none';
+    const timberRow=document.getElementById('timberGradeRow');
+    if(timberRow) timberRow.style.display=state.material==='timber'?'flex':'none';
 }
 document.getElementById('materialSelect').onchange=function(){
     state.material=this.value;
-    state.E=this.value==='timber'?11e9:210e9;
+    if(this.value==='timber'){
+        const g=timberGrades[document.getElementById('timberSelect').value];
+        state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; populateTimberSelect();
+    } else {
+        state.E=210e9; populateSteelSelect();
+    }
     document.getElementById('designMaterialSelect').value=this.value;
     updateMaterialUI();
     setMaterial(this.value);
 };
 document.getElementById('designMaterialSelect').onchange=function(){
     state.material=this.value;
-    state.E=this.value==='timber'?11e9:210e9;
+    if(this.value==='timber'){
+        const g=timberGrades[document.getElementById('timberSelect').value];
+        state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; populateTimberSelect();
+    } else {
+        state.E=210e9; populateSteelSelect();
+    }
     document.getElementById('materialSelect').value=this.value;
     updateMaterialUI();
     setMaterial(this.value);
@@ -951,6 +985,21 @@ function populateSteelSelect(){
     };
 }
 
+function populateTimberSelect(){
+    const sel=document.getElementById('timberSelect');
+    if(!sel) return;
+    const apply=()=>{
+        const g=timberGrades[sel.value];
+        if(!g) return;
+        state.E=g.E;
+        state.fm_k=g.fm_k;
+        state.fv_k=g.fv_k;
+        updateDesignProps(document.getElementById('designSectionSelect').value);
+    };
+    sel.onchange=apply;
+    apply();
+}
+
 function computeSectionOutline(cs){
     const b = cs.b_mm, h = cs.h_mm, tw = cs.tw_mm, tf = cs.tf_mm, r = cs.r_mm || 0;
     const rw = b / 2 + tw / 2, lw = b / 2 - tw / 2;
@@ -1094,26 +1143,41 @@ function updateDesignEquations(design){
     if(!design){ div.innerHTML=''; if(window.MathJax) MathJax.typesetPromise([div]); return; }
     const mRd=(design.MRd/1000).toFixed(1);
     const vRd=(design.VRd/1000).toFixed(1);
-    div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${mRd}\\ \\mathrm{kN\\,m}$$<br>`+
-                 `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${vRd}\\ \\mathrm{kN}$$`;
+    if(design.material==='timber'){
+        div.innerHTML=`$$M_{Rd}=\\frac{W f_{m,k}}{\\gamma_M}=${mRd}\\ \\mathrm{kN\\,m}$$<br>`+
+                     `$$V_{Rd}=\\frac{A_v f_{v,k}}{\\gamma_M}=${vRd}\\ \\mathrm{kN}$$`;
+    } else {
+        div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${mRd}\\ \\mathrm{kN\\,m}$$<br>`+
+                     `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${vRd}\\ \\mathrm{kN}$$`;
+    }
     if(window.MathJax) MathJax.typesetPromise([div]);
 }
 
 function updateDesignProps(name){
     const cs=crossSections[name];
     const EIel=document.getElementById('designEI');
+    const Wel=document.getElementById('designW');
+    const gammaEl=document.getElementById('designGamma');
     const MRdel=document.getElementById('designMRd');
     const VRdel=document.getElementById('designVRd');
     const Mutil=document.getElementById('designMomentUtil');
     const Vutil=document.getElementById('designShearUtil');
     drawSectionGraphic(cs);
-    if(!cs){ EIel.textContent='-'; MRdel.textContent='-'; VRdel.textContent='-'; if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
+    if(!cs){ EIel.textContent='-'; if(Wel) Wel.textContent='-'; if(gammaEl) gammaEl.textContent='-'; MRdel.textContent='-'; VRdel.textContent='-'; if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
     let design=null;
     if(window.computeSectionDesign){
         design=computeSectionDesign(name,{fy:state.fy,E:state.E,material:state.material,fm_k:state.fm_k,fv_k:state.fv_k});
     }
     const EIval=(design?design.EI:state.E*cs.I_y)/1000;
     EIel.textContent=EIval.toFixed(1)+' kN\u00b7m\u00b2';
+    if(design){
+        const Wcm3=(design.W*1e6).toFixed(1);
+        if(Wel) Wel.textContent=Wcm3+' cm\u00b3';
+        if(gammaEl) gammaEl.textContent=design.gamma.toFixed(2);
+    } else {
+        if(Wel) Wel.textContent='-';
+        if(gammaEl) gammaEl.textContent='-';
+    }
     if(design){
         MRdel.textContent=(design.MRd/1000).toFixed(1)+' kNm';
         VRdel.textContent=(design.VRd/1000).toFixed(1)+' kN';
