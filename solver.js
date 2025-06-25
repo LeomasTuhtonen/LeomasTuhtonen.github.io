@@ -57,12 +57,12 @@ function multiplyMatrixVector(A,x){
 let crossSectionMap = {};
 if (typeof require !== 'undefined' && typeof window === 'undefined') {
     try {
-        const data = require('./cross_sections.json');
+        const data = require('./steel_cross_sections.json');
         crossSectionMap = data.reduce((a,c)=>{a[c.profile]=c; return a;},{});
     } catch(e) {}
 }
-if (typeof window !== 'undefined' && window.crossSectionsData) {
-    crossSectionMap = window.crossSectionsData;
+if (typeof window !== 'undefined' && window.steelCrossSectionsData) {
+    crossSectionMap = window.steelCrossSectionsData;
 }
 
 function setCrossSections(data){
@@ -71,8 +71,8 @@ function setCrossSections(data){
 
 function getCrossSection(name){
     if((!crossSectionMap || Object.keys(crossSectionMap).length===0) &&
-       typeof window !== 'undefined' && window.crossSectionsData){
-        crossSectionMap = window.crossSectionsData;
+       typeof window !== 'undefined' && window.steelCrossSectionsData){
+        crossSectionMap = window.steelCrossSectionsData;
     }
     return crossSectionMap ? crossSectionMap[name] : undefined;
 }
@@ -110,15 +110,29 @@ function computeSectionDesign(name, opts){
     const cs = typeof name === 'string' ? getCrossSection(name) : name;
     if(!cs) return null;
     opts = opts || {};
-    const E = opts.E !== undefined ? opts.E : 210e9;
-    const fy = opts.fy !== undefined ? opts.fy : 355e6;
-    const gammaM0 = opts.gammaM0 !== undefined ? opts.gammaM0 : 1.0;
+    const material = opts.material || 'steel';
     const h = cs.h_mm/1000;
     const tw = cs.tw_mm/1000;
     const tf = cs.tf_mm/1000;
     let I = computeInertia(cs);
-    const EI = E*I;
     const W = I/(h/2);
+
+    if(material === 'timber'){
+        const E = opts.E !== undefined ? opts.E : 11e9;
+        const fm = opts.fm_k !== undefined ? opts.fm_k : 24e6;
+        const fv = opts.fv_k !== undefined ? opts.fv_k : 4e6;
+        const gammaM = opts.gammaM !== undefined ? opts.gammaM : 1.25;
+        const EI = E*I;
+        const Av = (cs.b_mm/1000)*h;
+        const MRd = fm*W/gammaM;
+        const VRd = fv*Av/gammaM;
+        return {EI, MRd, VRd};
+    }
+
+    const E = opts.E !== undefined ? opts.E : 210e9;
+    const fy = opts.fy !== undefined ? opts.fy : 355e6;
+    const gammaM0 = opts.gammaM0 !== undefined ? opts.gammaM0 : 1.0;
+    const EI = E*I;
     const MRd = fy*W/gammaM0;
     const hw = h - 2*tf;
     const Av = hw*tw;

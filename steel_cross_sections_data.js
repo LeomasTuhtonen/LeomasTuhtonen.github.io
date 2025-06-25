@@ -1,4 +1,4 @@
-window.crossSectionsData = {
+window.steelCrossSectionsData = {
   "IPE80": {
     "profile": "IPE80",
     "series": "IPE",
