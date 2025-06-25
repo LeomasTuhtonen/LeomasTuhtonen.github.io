@@ -56,6 +56,13 @@
             <input type="number" id="maxNodeDist" value="0.2" min="0.1" step="0.1" />
         </div>
         <div class="input-row">
+            <label>Material:</label>
+            <select id="materialSelect">
+                <option value="steel" selected>Steel</option>
+                <option value="timber">Timber</option>
+            </select>
+        </div>
+        <div class="input-row">
             <label>Cross-section:</label>
             <select id="sectionSelect"></select>
         </div>
@@ -134,6 +141,13 @@
     <div class="section">
         <h2>Cross-section Design</h2>
         <div class="input-row">
+            <label>Material:</label>
+            <select id="designMaterialSelect">
+                <option value="steel" selected>Steel</option>
+                <option value="timber">Timber</option>
+            </select>
+        </div>
+        <div class="input-row">
             <label>Section:</label>
             <select id="designSectionSelect"></select>
         </div>
@@ -174,7 +188,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <script src="./cross_sections_data.js"></script>
+    <script src="./steel_cross_sections_data.js"></script>
     <script src="./solver.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
     <script>
@@ -184,10 +198,13 @@ const state = {
     pointLoads: [],
     lineLoads: [],
     maxNodeDist: 0.2,
+    material: 'steel',
     E: 210e9,
     I: 1e-6,
     section: null,
     fy: 355e6,
+    fm_k: 24e6,
+    fv_k: 4e6,
     includeSelfWeight: true,
     leftSupport: true,
     rightSupport: true,
@@ -196,6 +213,8 @@ const state = {
     envelopeForces: null
 };
 
+let steelSections = {};
+let timberSections = {};
 let crossSections = {};
 function populateSectionSelect(){
     const sel = document.getElementById("sectionSelect");
@@ -220,36 +239,37 @@ function updateSectionProps(name){
     table.innerHTML=html;
 }
 
-function loadCrossSections(){
-    if(window.crossSectionsData){
-        crossSections = window.crossSectionsData;
-        if(window.setCrossSections) window.setCrossSections(crossSections);
-        populateSectionSelect();
-        populateDesignSelect();
-        const first=Object.keys(crossSections)[0];
-        state.section=first;
-        state.I=crossSections[first].I_y;
+function setMaterial(mat){
+    state.material = mat;
+    crossSections = mat === 'timber' ? timberSections : steelSections;
+    if(window.setCrossSections) window.setCrossSections(crossSections);
+    populateSectionSelect();
+    populateDesignSelect();
+    const first = Object.keys(crossSections)[0];
+    if(first){
+        state.section = first;
+        state.I = crossSections[first].I_y;
         updateSectionProps(first);
         updateDesignProps(first);
         updateSelfWeightLineLoad();
-    } else {
-        fetch('./cross_sections.json').then(r=>r.json()).then(data=>{
-            crossSections={};
-            data.forEach(cs=>{crossSections[cs.profile]=cs;});
-            if(window.setCrossSections) window.setCrossSections(crossSections);
-            populateSectionSelect();
-            populateDesignSelect();
-            const first=Object.keys(crossSections)[0];
-            state.section=first;
-            state.I=crossSections[first].I_y;
-            updateSectionProps(first);
-            updateDesignProps(first);
-            updateSelfWeightLineLoad();
-        });
     }
+}
+
+function loadCrossSections(){
+    const promises=[];
+    if(window.steelCrossSectionsData){
+        steelSections = window.steelCrossSectionsData;
+    } else {
+        promises.push(fetch('./steel_cross_sections.json').then(r=>r.json()).then(d=>{steelSections={};d.forEach(cs=>{steelSections[cs.profile]=cs;});}));
+    }
+    promises.push(fetch('./timber_cross_sections.json').then(r=>r.json()).then(d=>{timberSections={};d.forEach(cs=>{timberSections[cs.profile]=cs;});}));
+    Promise.all(promises).then(()=>{
+        setMaterial(state.material || 'steel');
+    });
 }
 loadCrossSections();
 populateSteelSelect();
+updateMaterialUI();
 
 function addSpan(length = 5) {
     const idx = state.spans.length;
@@ -544,6 +564,24 @@ document.getElementById('addCombBtn').onclick=()=>addCombination();
 document.getElementById('resultsSelect').onchange=function(){
     updateResultsOptions();
     solveSelected();
+};
+function updateMaterialUI(){
+    const row=document.getElementById('steelSelect').parentElement;
+    if(row) row.style.display=state.material==='steel'?'flex':'none';
+}
+document.getElementById('materialSelect').onchange=function(){
+    state.material=this.value;
+    state.E=this.value==='timber'?11e9:210e9;
+    document.getElementById('designMaterialSelect').value=this.value;
+    updateMaterialUI();
+    setMaterial(this.value);
+};
+document.getElementById('designMaterialSelect').onchange=function(){
+    state.material=this.value;
+    state.E=this.value==='timber'?11e9:210e9;
+    document.getElementById('materialSelect').value=this.value;
+    updateMaterialUI();
+    setMaterial(this.value);
 };
 document.getElementById('sectionSelect').onchange=function(){
     const name=this.value;
@@ -1072,7 +1110,7 @@ function updateDesignProps(name){
     if(!cs){ EIel.textContent='-'; MRdel.textContent='-'; VRdel.textContent='-'; if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
     let design=null;
     if(window.computeSectionDesign){
-        design=computeSectionDesign(name,{fy:state.fy,E:state.E});
+        design=computeSectionDesign(name,{fy:state.fy,E:state.E,material:state.material,fm_k:state.fm_k,fv_k:state.fv_k});
     }
     const EIval=(design?design.EI:state.E*cs.I_y)/1000;
     EIel.textContent=EIval.toFixed(1)+' kN\u00b7m\u00b2';

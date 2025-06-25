@@ -1,0 +1,18 @@
+[
+  {"profile":"45x95","series":"sawn","gk_kg_per_m":1.924,"A_m2":0.004275,"Iz_m4":7.2140625e-7,"h_mm":95,"b_mm":45,"tw_mm":45,"tf_mm":0,"r_mm":0,"Iy_m4":3.21515625e-6},
+  {"profile":"45x120","series":"sawn","gk_kg_per_m":2.43,"A_m2":0.0054,"Iz_m4":9.1125e-7,"h_mm":120,"b_mm":45,"tw_mm":45,"tf_mm":0,"r_mm":0,"Iy_m4":6.48e-6},
+  {"profile":"45x145","series":"sawn","gk_kg_per_m":2.936,"A_m2":0.006525,"Iz_m4":1.10109375e-6,"h_mm":145,"b_mm":45,"tw_mm":45,"tf_mm":0,"r_mm":0,"Iy_m4":1.143234375e-5},
+  {"profile":"45x170","series":"sawn","gk_kg_per_m":3.443,"A_m2":0.00765,"Iz_m4":1.2909375e-6,"h_mm":170,"b_mm":45,"tw_mm":45,"tf_mm":0,"r_mm":0,"Iy_m4":1.842375e-5},
+  {"profile":"45x195","series":"sawn","gk_kg_per_m":3.949,"A_m2":0.008775,"Iz_m4":1.48078125e-6,"h_mm":195,"b_mm":45,"tw_mm":45,"tf_mm":0,"r_mm":0,"Iy_m4":2.780578125e-5},
+  {"profile":"45x220","series":"sawn","gk_kg_per_m":4.455,"A_m2":0.0099,"Iz_m4":1.670625e-6,"h_mm":220,"b_mm":45,"tw_mm":45,"tf_mm":0,"r_mm":0,"Iy_m4":3.993e-5},
+  {"profile":"45x245","series":"sawn","gk_kg_per_m":4.961,"A_m2":0.011025,"Iz_m4":1.86046875e-6,"h_mm":245,"b_mm":45,"tw_mm":45,"tf_mm":0,"r_mm":0,"Iy_m4":5.514796875e-5},
+
+  {"profile":"90x315","series":"glulam","gk_kg_per_m":12.758,"A_m2":0.02835,"Iz_m4":1.913625e-5,"h_mm":315,"b_mm":90,"tw_mm":90,"tf_mm":0,"r_mm":0,"Iy_m4":2.344190625e-4},
+  {"profile":"90x360","series":"glulam","gk_kg_per_m":14.58,"A_m2":0.0324,"Iz_m4":2.187e-5,"h_mm":360,"b_mm":90,"tw_mm":90,"tf_mm":0,"r_mm":0,"Iy_m4":3.4992e-4},
+  {"profile":"90x405","series":"glulam","gk_kg_per_m":16.403,"A_m2":0.03645,"Iz_m4":2.460375e-5,"h_mm":405,"b_mm":90,"tw_mm":90,"tf_mm":0,"r_mm":0,"Iy_m4":4.982259375e-4},
+  {"profile":"90x450","series":"glulam","gk_kg_per_m":18.225,"A_m2":0.0405,"Iz_m4":2.73375e-5,"h_mm":450,"b_mm":90,"tw_mm":90,"tf_mm":0,"r_mm":0,"Iy_m4":6.834375e-4},
+  {"profile":"115x315","series":"glulam","gk_kg_per_m":16.301,"A_m2":0.036225,"Iz_m4":3.992296875e-5,"h_mm":315,"b_mm":115,"tw_mm":115,"tf_mm":0,"r_mm":0,"Iy_m4":2.9953546875e-4},
+  {"profile":"115x360","series":"glulam","gk_kg_per_m":18.63,"A_m2":0.0414,"Iz_m4":4.562625e-5,"h_mm":360,"b_mm":115,"tw_mm":115,"tf_mm":0,"r_mm":0,"Iy_m4":4.4712e-4},
+  {"profile":"115x405","series":"glulam","gk_kg_per_m":20.959,"A_m2":0.046575,"Iz_m4":5.132953125e-5,"h_mm":405,"b_mm":115,"tw_mm":115,"tf_mm":0,"r_mm":0,"Iy_m4":6.3662203125e-4},
+  {"profile":"115x450","series":"glulam","gk_kg_per_m":23.287,"A_m2":0.05175,"Iz_m4":5.70328125e-5,"h_mm":450,"b_mm":115,"tw_mm":115,"tf_mm":0,"r_mm":0,"Iy_m4":8.7328125e-4}
+]
