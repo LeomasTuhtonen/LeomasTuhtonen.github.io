@@ -92,6 +92,12 @@ function getSelfWeightLineLoads(spans, name){
 
 function computeInertia(cs){
     if(!cs) return 0;
+    if(cs.series === 'sawn' || cs.series === 'glulam'){
+        if(cs.Iy_m4 !== undefined) return cs.Iy_m4;
+        const b = cs.b_mm/1000;
+        const h = cs.h_mm/1000;
+        return b*Math.pow(h,3)/12;
+    }
     const h = cs.h_mm;
     const b = cs.b_mm;
     const tw = cs.tw_mm;
@@ -126,7 +132,7 @@ function computeSectionDesign(name, opts){
         const Av = (cs.b_mm/1000)*h;
         const MRd = fm*W/gammaM;
         const VRd = fv*Av/gammaM;
-        return {EI, MRd, VRd};
+        return {EI, MRd, VRd, W, gamma: gammaM, material: 'timber'};
     }
 
     const E = opts.E !== undefined ? opts.E : 210e9;
@@ -137,7 +143,7 @@ function computeSectionDesign(name, opts){
     const hw = h - 2*tf;
     const Av = hw*tw;
     const VRd = Av*fy/(Math.sqrt(3)*gammaM0);
-    return {EI, MRd, VRd};
+    return {EI, MRd, VRd, W, gamma: gammaM0, material: 'steel'};
 }
 
 function computeResults(state){
