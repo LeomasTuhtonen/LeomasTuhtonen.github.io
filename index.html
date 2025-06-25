@@ -20,6 +20,8 @@
         canvas { width: 100%; height: 250px; margin-top: 20px; background:#fff; border:1px solid #ddd; padding:10px; border-radius:4px; }
         button { padding:6px 12px; margin-top:4px; background:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; }
         button:hover { background:#45a049; }
+        .remove-btn { background:#f44336; }
+        .remove-btn:hover { background:#d32f2f; }
         h1 { text-align:center; padding:20px 0; margin:0; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.1); margin-bottom:20px; }
         #tabs { text-align:center; margin-bottom:20px; }
         #tabs button { padding:6px 12px; margin:0 5px; border:none; border-radius:4px; cursor:pointer; background:#ddd; }
@@ -257,7 +259,7 @@ function addSpan(length = 5) {
     div.innerHTML = `<label>Span ${idx+1} length:</label>`+
         `<input type='number' value='${length}' min='0.1' step='0.1' `+
         `onchange='state.spans[${idx}].length=parseFloat(this.value); updateSelfWeightLineLoad(); updateWholeLineLoads(); solveSelected();' />`+
-        `<button onclick='removeSpan(${idx})'>Remove</button>`;
+        `<button class='remove-btn' onclick='removeSpan(${idx})'>Remove</button>`;
     div.id = `span-${idx}`;
     document.getElementById('spansContainer').appendChild(div);
     updateSelfWeightLineLoad();
@@ -290,7 +292,7 @@ function addPointLoad(P=10,x=0,lc='LC1'){
     `<input type='number' value='${(P/1000)}' step='0.1' onchange='state.pointLoads[${idx}].P=parseFloat(this.value)*1000; solveSelected();'/>`+
     `<input type='number' value='${x}' step='0.1' onchange='state.pointLoads[${idx}].x=parseFloat(this.value); solveSelected();'/>`+
     `<input type='text' value='${lc}' onchange='state.pointLoads[${idx}].case=this.value; updateResultsOptions(); solveSelected();'/>`+
-    `<button onclick='removePointLoad(${idx})'>Remove</button>`;
+    `<button class='remove-btn' onclick='removePointLoad(${idx})'>Remove</button>`;
     div.id=`pload-${idx}`;
     document.getElementById('pointLoadsContainer').appendChild(div);
     updateResultsOptions();
@@ -323,7 +325,7 @@ function addLineLoad(w=5,start=0,end=1,lc='LC1',whole=false){
     `<input id='lload-end-${idx}' type='number' value='${end}' step='0.1' ${dis} oninput='state.lineLoads[${idx}].end=parseFloat(this.value); solveSelected();'/>`+
     `<input type='text' value='${lc}' onchange='state.lineLoads[${idx}].case=this.value; updateResultsOptions(); solveSelected();'/>`+
     `<label><input id='lload-whole-${idx}' type='checkbox' ${whole?'checked':''} onchange='toggleWholeLineLoad(${idx},this.checked);'/> across the whole beam</label>`+
-    `<button onclick='removeLineLoad(${idx})'>Remove</button>`;
+    `<button class='remove-btn' onclick='removeLineLoad(${idx})'>Remove</button>`;
     div.id=`lload-${idx}`;
     document.getElementById('lineLoadsContainer').appendChild(div);
     updateResultsOptions();
@@ -445,7 +447,7 @@ function addCombination(name=`Comb${state.loadCombinations.length+1}`,factorsStr
     div.className='input-row';
     div.innerHTML=`<input type='text' value='${name}' onchange='state.loadCombinations[${idx}].name=this.value; updateResultsOptions();'/>`+
     `<input type='text' value='${factorsStr}' onchange='state.loadCombinations[${idx}].factors=parseFactors(this.value); solveSelected();'/>`+
-    `<button onclick='removeCombination(${idx})'>Remove</button>`;
+    `<button class='remove-btn' onclick='removeCombination(${idx})'>Remove</button>`;
     div.id=`comb-${idx}`;
     document.getElementById('combContainer').appendChild(div);
     updateResultsOptions();
@@ -1110,6 +1112,10 @@ function showTab(name){
     document.querySelectorAll('#tabs button').forEach(btn=>{
         btn.classList.toggle('active', btn.dataset.tab===name);
     });
+    if(name==='design'){
+        const sel=document.getElementById('designSectionSelect');
+        if(sel) updateDesignProps(sel.value);
+    }
 }
 
 addSpan(10);
