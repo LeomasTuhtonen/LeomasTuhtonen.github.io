@@ -1174,13 +1174,14 @@ function updateDesignEquations(design){
     const div=document.getElementById('designEquations');
     if(!div){return;}
     if(!design){ div.innerHTML=''; if(window.MathJax) MathJax.typesetPromise([div]); return; }
+    const disp=v=>v==='-'?`\\text{--}`:v;
     const mRd=(design.MRd/1000).toFixed(1);
     const mRdLBA=(design.MRdLBA/1000).toFixed(1);
     const vRd=(design.VRd/1000).toFixed(1);
     if(design.material==='timber'){
-        div.innerHTML=`$$M_{Rd}=\\frac{W f_{m,k}}{\\gamma_M}=${mRd}\\,\mathrm{kN\\,m}$$<br>`+
-                     `$$M_{Rd,LBA}=k_{crit} W f_{m,d}=${mRdLBA}\\,\mathrm{kN\\,m}$$<br>`+
-                     `$$V_{Rd}=\\frac{A_v f_{v,k}}{\\gamma_M}=${vRd}\\,\mathrm{kN}$$`;
+        div.innerHTML=`$$M_{Rd}=\\frac{W f_{m,k}}{\\gamma_M}=${disp(mRd)}\\,\mathrm{kN\\,m}$$<br>`+
+                     `$$M_{Rd,LBA}=k_{crit} W f_{m,d}=${disp(mRdLBA)}\\,\mathrm{kN\\,m}$$<br>`+
+                     `$$V_{Rd}=\\frac{A_v f_{v,k}}{\\gamma_M}=${disp(vRd)}\\,\mathrm{kN}$$`;
     } else {
         const iw=design.Iw!==undefined?design.Iw.toExponential(2):'-';
         const it=design.It!==undefined?design.It.toExponential(2):'-';
@@ -1194,13 +1195,13 @@ function updateDesignEquations(design){
         const kw=design.kw!==undefined?design.kw.toFixed(2):'-';
         const mcr=design.Mcr!==undefined?(design.Mcr/1000).toFixed(1):'-';
         const chi=design.chiLT!==undefined?design.chiLT.toFixed(3):'-';
-        div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${mRd}\\,\mathrm{kN\\,m}$$<br>`+
-                     `$$M_{Rd,LBA}=\\chi_{LT} \\frac{W f_y}{\\gamma_{M0}}=${mRdLBA}\\,\mathrm{kN\\,m}$$<br>`+
-                     `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${vRd}\\,\mathrm{kN}$$<br>`+
-                     `$$I_z=${iz}\\,\mathrm{m^4},\ I_t=${it}\\,\mathrm{m^4},\ I_w=${iw}\\,\mathrm{m^6}$$<br>`+
-                     `$$L_b=${lb}\,\mathrm{m},\ E=${e}\,\mathrm{GPa},\ G=${g}\,\mathrm{GPa}$$<br>`+
-                     `$$C_1=${c1},\ C_2=${c2},\ C_3=${c3},\ k_w=${kw}$$<br>`+
-                     `$$M_{cr}=C_1 \frac{\pi^2 E I_z}{L_b^2} \sqrt{\frac{I_w}{I_z}+\frac{L_b^2 G I_t}{\pi^2 E I_z}}=${mcr}\\,\mathrm{kN\\,m},\ \chi_{LT}=${chi}$$`;
+        div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${disp(mRd)}\\,\mathrm{kN\\,m}$$<br>`+
+                     `$$M_{Rd,LBA}=\\chi_{LT} \\frac{W f_y}{\\gamma_{M0}}=${disp(mRdLBA)}\\,\mathrm{kN\\,m}$$<br>`+
+                     `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${disp(vRd)}\\,\mathrm{kN}$$<br>`+
+                     `$$I_z=${disp(iz)}\\,\mathrm{m^4},\ I_t=${disp(it)}\\,\mathrm{m^4},\ I_w=${disp(iw)}\\,\mathrm{m^6}$$<br>`+
+                     `$$L_b=${disp(lb)}\,\mathrm{m},\ E=${disp(e)}\,\mathrm{GPa},\ G=${disp(g)}\,\mathrm{GPa}$$<br>`+
+                     `$$C_1=${disp(c1)},\ C_2=${disp(c2)},\ C_3=${disp(c3)},\ k_w=${disp(kw)}$$<br>`+
+                     `$$M_{cr}=C_1 \frac{\pi^2 E I_z}{L_b^2} \sqrt{\frac{I_w}{I_z}+\frac{L_b^2 G I_t}{\pi^2 E I_z}}=${disp(mcr)}\\,\mathrm{kN\\,m},\ \chi_{LT}=${disp(chi)}$$`;
     }
     if(window.MathJax) MathJax.typesetPromise([div]);
 }
