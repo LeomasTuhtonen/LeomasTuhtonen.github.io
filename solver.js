@@ -98,17 +98,17 @@ function computeInertia(cs){
         const h = cs.h_mm/1000;
         return b*Math.pow(h,3)/12;
     }
-    const h = cs.h_mm;
-    const b = cs.b_mm;
-    const tw = cs.tw_mm;
-    const tf = cs.tf_mm;
+    const h = cs.h_mm !== undefined ? cs.h_mm/1000 : undefined;
+    const b = cs.b_mm !== undefined ? cs.b_mm/1000 : undefined;
+    const tw = cs.tw_mm !== undefined ? cs.tw_mm/1000 : undefined;
+    const tf = cs.tf_mm !== undefined ? cs.tf_mm/1000 : undefined;
     if(h===undefined || b===undefined || tw===undefined || tf===undefined)
         return cs.I_y !== undefined ? cs.I_y : (cs.Iz_m4 !== undefined ? cs.Iz_m4 : (cs.Iy_m4 !== undefined ? cs.Iy_m4 : 0));
     const hw = h - 2*tf;
     const Iweb = tw*Math.pow(hw,3)/12;
     const If = b*Math.pow(tf,3)/12;
     const d = hw/2 + tf/2;
-    const Icalc = (2*(If + b*tf*d*d) + Iweb)/1e12; // to m^4
+    const Icalc = 2*(If + b*tf*d*d) + Iweb; // dimensions already in m
     return Icalc;
 }
 
@@ -120,16 +120,16 @@ function computeWeakAxisInertia(cs){
         const h = cs.h_mm/1000;
         return h*Math.pow(b,3)/12;
     }
-    const h = cs.h_mm;
-    const b = cs.b_mm;
-    const tw = cs.tw_mm;
-    const tf = cs.tf_mm;
+    const h = cs.h_mm !== undefined ? cs.h_mm/1000 : undefined;
+    const b = cs.b_mm !== undefined ? cs.b_mm/1000 : undefined;
+    const tw = cs.tw_mm !== undefined ? cs.tw_mm/1000 : undefined;
+    const tf = cs.tf_mm !== undefined ? cs.tf_mm/1000 : undefined;
     if(h===undefined || b===undefined || tw===undefined || tf===undefined)
         return 0;
     const hw = h - 2*tf;
     const Iweb = hw*Math.pow(tw,3)/12;
     const If = b*Math.pow(tf,3)/12;
-    return (2*If + Iweb)/1e12;
+    return 2*If + Iweb;
 }
 
 function computeSectionDesign(name, opts){
