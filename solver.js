@@ -175,13 +175,13 @@ function computeSectionDesign(name, opts){
     const Av = hw*tw;
     const VRd = Av*fy/(Math.sqrt(3)*gammaM0);
     let MRdLBA = MRd;
-    let It, Iw, Mcr, chiLT;
+    const b = cs.b_mm/1000;
+    let It = ((2*b*Math.pow(tf,3))/3 + (hw*Math.pow(tw,3))/3);
+    const y = h/2 - tf/2;
+    let Iw = 2*(b*Math.pow(tf,3)/12)*Math.pow(y,2);
+    let Mcr, chiLT;
     if(typeof opts.unbracedLength === 'number' && opts.unbracedLength > 0){
         const Lb = opts.unbracedLength;
-        const b = cs.b_mm/1000;
-        It = ((2*b*Math.pow(tf,3))/3 + (hw*Math.pow(tw,3))/3);
-        const y = h/2 - tf/2;
-        Iw = 2*(b*Math.pow(tf,3)/12)*Math.pow(y,2);
         const Iz = computeWeakAxisInertia(cs);
         const G = opts.G !== undefined ? opts.G : 81e9;
         const C1 = opts.C1 !== undefined ? opts.C1 : 1.0;
