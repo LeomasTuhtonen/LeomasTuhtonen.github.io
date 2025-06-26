@@ -94,6 +94,7 @@ function computeInertia(cs){
     if(!cs) return 0;
     if(cs.series === 'sawn' || cs.series === 'glulam'){
         if(cs.Iy_m4 !== undefined) return cs.Iy_m4;
+        if(cs.I_y !== undefined) return cs.I_y;
         const b = cs.b_mm/1000;
         const h = cs.h_mm/1000;
         return b*Math.pow(h,3)/12;
@@ -103,7 +104,7 @@ function computeInertia(cs){
     const tw = cs.tw_mm !== undefined ? cs.tw_mm/1000 : undefined;
     const tf = cs.tf_mm !== undefined ? cs.tf_mm/1000 : undefined;
     if(h===undefined || b===undefined || tw===undefined || tf===undefined)
-        return cs.I_y !== undefined ? cs.I_y : (cs.Iz_m4 !== undefined ? cs.Iz_m4 : (cs.Iy_m4 !== undefined ? cs.Iy_m4 : 0));
+        return cs.I_y !== undefined ? cs.I_y : (cs.Iy_m4 !== undefined ? cs.Iy_m4 : (cs.Iz_m4 !== undefined ? cs.Iz_m4 : (cs.I_z !== undefined ? cs.I_z : 0)));
     const hw = h - 2*tf;
     const Iweb = tw*Math.pow(hw,3)/12;
     const If = b*Math.pow(tf,3)/12;
@@ -115,6 +116,7 @@ function computeInertia(cs){
 function computeWeakAxisInertia(cs){
     if(!cs) return 0;
     if(cs.Iz_m4 !== undefined) return cs.Iz_m4;
+    if(cs.I_z !== undefined) return cs.I_z;
     if(cs.series === 'sawn' || cs.series === 'glulam'){
         const b = cs.b_mm/1000;
         const h = cs.h_mm/1000;

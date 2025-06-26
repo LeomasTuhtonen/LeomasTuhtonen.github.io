@@ -297,7 +297,8 @@ function setMaterial(mat){
     const first = Object.keys(crossSections)[0];
     if(first){
         state.section = first;
-        state.I = crossSections[first].I_y;
+        const cs = crossSections[first];
+        state.I = cs.I_y !== undefined ? cs.I_y : (cs.Iy_m4 !== undefined ? cs.Iy_m4 : (cs.Iz_m4 !== undefined ? cs.Iz_m4 : cs.I_z));
         updateSectionProps(first);
         updateDesignProps(first);
         updateSelfWeightLineLoad();
@@ -649,7 +650,8 @@ document.getElementById('sectionSelect').onchange=function(){
     const name=this.value;
     state.section=name;
     if(crossSections[name]){
-        state.I=crossSections[name].I_y;
+        const cs=crossSections[name];
+        state.I = cs.I_y !== undefined ? cs.I_y : (cs.Iy_m4 !== undefined ? cs.Iy_m4 : (cs.Iz_m4 !== undefined ? cs.Iz_m4 : cs.I_z));
         document.getElementById('inertiaInput').value=state.I;
         updateSectionProps(name);
     }
@@ -1176,9 +1178,9 @@ function updateDesignEquations(design){
     const mRdLBA=(design.MRdLBA/1000).toFixed(1);
     const vRd=(design.VRd/1000).toFixed(1);
     if(design.material==='timber'){
-        div.innerHTML=`$$M_{Rd}=\\frac{W f_{m,k}}{\\gamma_M}=${mRd}\\ \mathrm{kN\\,m}$$<br>`+
-                     `$$M_{Rd,LBA}=k_{crit} W f_{m,d}=${mRdLBA}\\ \mathrm{kN\\,m}$$<br>`+
-                     `$$V_{Rd}=\\frac{A_v f_{v,k}}{\\gamma_M}=${vRd}\\ \mathrm{kN}$$`;
+        div.innerHTML=`$$M_{Rd}=\\frac{W f_{m,k}}{\\gamma_M}=${mRd}\\,\mathrm{kN\\,m}$$<br>`+
+                     `$$M_{Rd,LBA}=k_{crit} W f_{m,d}=${mRdLBA}\\,\mathrm{kN\\,m}$$<br>`+
+                     `$$V_{Rd}=\\frac{A_v f_{v,k}}{\\gamma_M}=${vRd}\\,\mathrm{kN}$$`;
     } else {
         const iw=design.Iw!==undefined?design.Iw.toExponential(2):'-';
         const it=design.It!==undefined?design.It.toExponential(2):'-';
@@ -1192,13 +1194,13 @@ function updateDesignEquations(design){
         const kw=design.kw!==undefined?design.kw.toFixed(2):'-';
         const mcr=design.Mcr!==undefined?(design.Mcr/1000).toFixed(1):'-';
         const chi=design.chiLT!==undefined?design.chiLT.toFixed(3):'-';
-        div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${mRd}\\ \mathrm{kN\\,m}$$<br>`+
-                     `$$M_{Rd,LBA}=\\chi_{LT} \\frac{W f_y}{\\gamma_{M0}}=${mRdLBA}\\ \mathrm{kN\\,m}$$<br>`+
-                     `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${vRd}\\ \mathrm{kN}$$<br>`+
-                     `$$I_z=${iz}\\ \mathrm{m^4},\ I_t=${it}\\ \mathrm{m^4},\ I_w=${iw}\\ \mathrm{m^6}$$<br>`+
+        div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${mRd}\\,\mathrm{kN\\,m}$$<br>`+
+                     `$$M_{Rd,LBA}=\\chi_{LT} \\frac{W f_y}{\\gamma_{M0}}=${mRdLBA}\\,\mathrm{kN\\,m}$$<br>`+
+                     `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${vRd}\\,\mathrm{kN}$$<br>`+
+                     `$$I_z=${iz}\\,\mathrm{m^4},\ I_t=${it}\\,\mathrm{m^4},\ I_w=${iw}\\,\mathrm{m^6}$$<br>`+
                      `$$L_b=${lb}\,\mathrm{m},\ E=${e}\,\mathrm{GPa},\ G=${g}\,\mathrm{GPa}$$<br>`+
                      `$$C_1=${c1},\ C_2=${c2},\ C_3=${c3},\ k_w=${kw}$$<br>`+
-                     `$$M_{cr}=C_1 \frac{\pi^2 E I_z}{L_b^2} \sqrt{\frac{I_w}{I_z}+\frac{L_b^2 G I_t}{\pi^2 E I_z}}=${mcr}\\ \mathrm{kN\\,m},\ \chi_{LT}=${chi}$$`;
+                     `$$M_{cr}=C_1 \frac{\pi^2 E I_z}{L_b^2} \sqrt{\frac{I_w}{I_z}+\frac{L_b^2 G I_t}{\pi^2 E I_z}}=${mcr}\\,\mathrm{kN\\,m},\ \chi_{LT}=${chi}$$`;
     }
     if(window.MathJax) MathJax.typesetPromise([div]);
 }
@@ -1225,7 +1227,8 @@ function updateDesignProps(name){
         const Lb=parseFloat(document.getElementById('designLb').value);
         design=computeSectionDesign(name,{fy:state.fy,E:state.E,material:state.material,fm_k:state.fm_k,fv_k:state.fv_k,unbracedLength:Lb});
     }
-    const EIval=(design?design.EI:state.E*cs.I_y)/1000;
+    const Iy = cs.I_y !== undefined ? cs.I_y : (cs.Iy_m4 !== undefined ? cs.Iy_m4 : (cs.Iz_m4 !== undefined ? cs.Iz_m4 : cs.I_z));
+    const EIval=(design?design.EI:state.E*Iy)/1000;
     EIel.textContent=EIval.toFixed(1)+' kN\u00b7m\u00b2';
     if(design){
         const Wcm3=(design.W*1e6).toFixed(1);
