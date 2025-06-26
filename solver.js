@@ -178,7 +178,7 @@ function computeSectionDesign(name, opts){
     const b = cs.b_mm/1000;
     let It = ((2*b*Math.pow(tf,3))/3 + (hw*Math.pow(tw,3))/3);
     const Iz = computeWeakAxisInertia(cs);
-    let Iw = Iz * Math.pow(h - tf, 2) / 4;
+    let Iw = (tf * Math.pow(b, 3) / 24) * Math.pow(h - tf, 2);
     let Mcr, chiLT;
     if(typeof opts.unbracedLength === 'number' && opts.unbracedLength > 0){
         const Lb = opts.unbracedLength;
@@ -187,14 +187,14 @@ function computeSectionDesign(name, opts){
         const C2 = opts.C2 !== undefined ? opts.C2 : 0.0;
         const C3 = opts.C3 !== undefined ? opts.C3 : 0.0;
         const kw = opts.kw !== undefined ? opts.kw : 1.0;
-        const base = C1*Math.PI/Lb*Math.sqrt(E*Iz*G*It);
-        const term2 = C2*(Math.PI*Math.PI*E*Iw)/(C1*C1*G*It*Lb*Lb);
-        const term3 = C3*(Math.pow(Math.PI,4)*E*E*Iz*Iw)/(C1*C1*G*G*It*It*Math.pow(Lb,4));
-        Mcr = base*Math.sqrt(kw + term2 + term3);
+        const term_sqrt_1 = (Math.PI * Math.PI * E * Iz) / (Lb * Lb);
+        const term_sqrt_2 = Iw / Iz;
+        const term_sqrt_3 = (Lb * Lb * G * It) / (Math.PI * Math.PI * E * Iz);
+        Mcr = C1 * term_sqrt_1 * Math.sqrt(term_sqrt_2 + term_sqrt_3);
         const lambdaRel = Math.sqrt((fy*W/gammaM0)/Mcr);
         const alpha = 0.34;
         const phi = 0.5*(1 + alpha*(lambdaRel-0.2) + lambdaRel*lambdaRel);
-        chiLT = 1/(phi + Math.sqrt(phi*phi + lambdaRel*lambdaRel));
+        chiLT = 1/(phi + Math.sqrt(phi*phi - lambdaRel*lambdaRel));
         MRdLBA = chiLT*(fy*W/gammaM0);
     }
     return {EI, MRd, MRdLBA, VRd, W, gamma: gammaM0, material: 'steel', Iw, It, Mcr, chiLT};
