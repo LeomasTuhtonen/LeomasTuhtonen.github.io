@@ -179,8 +179,16 @@
             <span id="designGamma">-</span>
         </div>
         <div class="input-row">
+            <label>Lateral bracing length:</label>
+            <input type="number" id="designLb" value="3" step="0.1" />
+        </div>
+        <div class="input-row">
             <label>Bending resistance M,Rd:</label>
             <span id="designMRd">-</span>
+        </div>
+        <div class="input-row">
+            <label>M,Rd,LBA:</label>
+            <span id="designMRdLBA">-</span>
         </div>
         <div class="input-row">
             <label>Shear resistance V,Rd:</label>
@@ -645,6 +653,9 @@ document.getElementById('leftSupportToggle').onchange=function(){
 document.getElementById('rightSupportToggle').onchange=function(){
     state.rightSupport=this.checked;
     solveSelected();
+};
+document.getElementById('designLb').onchange=function(){
+    updateDesignProps(document.getElementById('designSectionSelect').value);
 };
 
 document.getElementById('inertiaInput').value = state.I;
@@ -1142,13 +1153,16 @@ function updateDesignEquations(design){
     if(!div){return;}
     if(!design){ div.innerHTML=''; if(window.MathJax) MathJax.typesetPromise([div]); return; }
     const mRd=(design.MRd/1000).toFixed(1);
+    const mRdLBA=(design.MRdLBA/1000).toFixed(1);
     const vRd=(design.VRd/1000).toFixed(1);
     if(design.material==='timber'){
-        div.innerHTML=`$$M_{Rd}=\\frac{W f_{m,k}}{\\gamma_M}=${mRd}\\ \\mathrm{kN\\,m}$$<br>`+
-                     `$$V_{Rd}=\\frac{A_v f_{v,k}}{\\gamma_M}=${vRd}\\ \\mathrm{kN}$$`;
+        div.innerHTML=`$$M_{Rd}=\\frac{W f_{m,k}}{\\gamma_M}=${mRd}\\ \mathrm{kN\\,m}$$<br>`+
+                     `$$M_{Rd,LBA}=k_{crit} W f_{m,d}=${mRdLBA}\\ \mathrm{kN\\,m}$$<br>`+
+                     `$$V_{Rd}=\\frac{A_v f_{v,k}}{\\gamma_M}=${vRd}\\ \mathrm{kN}$$`;
     } else {
-        div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${mRd}\\ \\mathrm{kN\\,m}$$<br>`+
-                     `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${vRd}\\ \\mathrm{kN}$$`;
+        div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${mRd}\\ \mathrm{kN\\,m}$$<br>`+
+                     `$$M_{Rd,LBA}=\\chi_{LT} \\frac{W f_y}{\\gamma_{M0}}=${mRdLBA}\\ \mathrm{kN\\,m}$$<br>`+
+                     `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${vRd}\\ \mathrm{kN}$$`;
     }
     if(window.MathJax) MathJax.typesetPromise([div]);
 }
@@ -1159,14 +1173,16 @@ function updateDesignProps(name){
     const Wel=document.getElementById('designW');
     const gammaEl=document.getElementById('designGamma');
     const MRdel=document.getElementById('designMRd');
+    const MRdLBdel=document.getElementById('designMRdLBA');
     const VRdel=document.getElementById('designVRd');
     const Mutil=document.getElementById('designMomentUtil');
     const Vutil=document.getElementById('designShearUtil');
     drawSectionGraphic(cs);
-    if(!cs){ EIel.textContent='-'; if(Wel) Wel.textContent='-'; if(gammaEl) gammaEl.textContent='-'; MRdel.textContent='-'; VRdel.textContent='-'; if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
+    if(!cs){ EIel.textContent='-'; if(Wel) Wel.textContent='-'; if(gammaEl) gammaEl.textContent='-'; MRdel.textContent='-'; if(MRdLBdel) MRdLBdel.textContent='-'; VRdel.textContent='-'; if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
     let design=null;
     if(window.computeSectionDesign){
-        design=computeSectionDesign(name,{fy:state.fy,E:state.E,material:state.material,fm_k:state.fm_k,fv_k:state.fv_k});
+        const Lb=parseFloat(document.getElementById('designLb').value);
+        design=computeSectionDesign(name,{fy:state.fy,E:state.E,material:state.material,fm_k:state.fm_k,fv_k:state.fv_k,unbracedLength:Lb});
     }
     const EIval=(design?design.EI:state.E*cs.I_y)/1000;
     EIel.textContent=EIval.toFixed(1)+' kN\u00b7m\u00b2';
@@ -1180,13 +1196,14 @@ function updateDesignProps(name){
     }
     if(design){
         MRdel.textContent=(design.MRd/1000).toFixed(1)+' kNm';
+        if(MRdLBdel) MRdLBdel.textContent=(design.MRdLBA/1000).toFixed(1)+' kNm';
         VRdel.textContent=(design.VRd/1000).toFixed(1)+' kN';
         updateDesignEquations(design);
         if(state.envelopeForces){
             const mAbs=Math.max(Math.abs(state.envelopeForces.minMoment), Math.abs(state.envelopeForces.maxMoment));
             const vAbs=Math.max(Math.abs(state.envelopeForces.minShear), Math.abs(state.envelopeForces.maxShear));
             if(Mutil){
-                const val=(100*mAbs/design.MRd);
+                const val=(100*mAbs/design.MRdLBA);
                 Mutil.textContent=val.toFixed(1)+'%';
                 Mutil.style.color=val<=100?'green':'red';
             }
@@ -1201,6 +1218,7 @@ function updateDesignProps(name){
         }
     } else {
         MRdel.textContent='-';
+        if(MRdLBdel) MRdLBdel.textContent='-';
         VRdel.textContent='-';
         if(Mutil){ Mutil.textContent='-'; Mutil.style.color=''; }
         if(Vutil){ Vutil.textContent='-'; Vutil.style.color=''; }

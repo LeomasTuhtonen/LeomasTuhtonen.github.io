@@ -132,7 +132,18 @@ function computeSectionDesign(name, opts){
         const Av = (cs.b_mm/1000)*h;
         const MRd = fm*W/gammaM;
         const VRd = fv*Av/gammaM;
-        return {EI, MRd, VRd, W, gamma: gammaM, material: 'timber'};
+        let MRdLBA = MRd;
+        if(opts.unbracedLength){
+            const Lb = opts.unbracedLength;
+            const b = cs.b_mm/1000;
+            const hsec = cs.h_mm/1000;
+            const fmd = fm/gammaM;
+            const sigmaCrit = 0.78*b*b*E/(hsec*Lb);
+            const lambdaRel = Math.sqrt(fmd/sigmaCrit);
+            const kcrit = 1/(lambdaRel + Math.sqrt(lambdaRel*lambdaRel + 0.25));
+            MRdLBA = kcrit*W*fmd;
+        }
+        return {EI, MRd, MRdLBA, VRd, W, gamma: gammaM, material: 'timber'};
     }
 
     const E = opts.E !== undefined ? opts.E : 210e9;
@@ -143,7 +154,22 @@ function computeSectionDesign(name, opts){
     const hw = h - 2*tf;
     const Av = hw*tw;
     const VRd = Av*fy/(Math.sqrt(3)*gammaM0);
-    return {EI, MRd, VRd, W, gamma: gammaM0, material: 'steel'};
+    let MRdLBA = MRd;
+    if(opts.unbracedLength){
+        const Lb = opts.unbracedLength;
+        const b = cs.b_mm/1000;
+        const It = ((2*b*Math.pow(tf,3))/3 + (hw*Math.pow(tw,3))/3);
+        const y = h/2 - tf/2;
+        const Iw = 2*(b*Math.pow(tf,3)/12)*Math.pow(y,2);
+        const G = opts.G !== undefined ? opts.G : 81e9;
+        const Mcr = Math.PI/Lb*Math.sqrt(E*Iw*G*It)*Math.sqrt(1 + (Math.PI*Math.PI*E*Iw)/(G*It*Lb*Lb));
+        const lambdaRel = Math.sqrt((fy*W/gammaM0)/Mcr);
+        const alpha = 0.34;
+        const phi = 0.5*(1 + alpha*(lambdaRel-0.2) + lambdaRel*lambdaRel);
+        const chiLT = 1/(phi + Math.sqrt(phi*phi + lambdaRel*lambdaRel));
+        MRdLBA = chiLT*(fy*W/gammaM0);
+    }
+    return {EI, MRd, MRdLBA, VRd, W, gamma: gammaM0, material: 'steel'};
 }
 
 function computeResults(state){
