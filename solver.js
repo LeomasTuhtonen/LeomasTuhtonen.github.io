@@ -180,13 +180,13 @@ function computeSectionDesign(name, opts){
     const Iz = computeWeakAxisInertia(cs);
     let Iw = (tf * Math.pow(b, 3) / 24) * Math.pow(h - tf, 2);
     let Mcr, chiLT;
+    let Lb, G = opts.G !== undefined ? opts.G : 81e9;
+    let C1 = opts.C1 !== undefined ? opts.C1 : 1.0;
+    let C2 = opts.C2 !== undefined ? opts.C2 : 0.0;
+    let C3 = opts.C3 !== undefined ? opts.C3 : 0.0;
+    let kw = opts.kw !== undefined ? opts.kw : 1.0;
     if(typeof opts.unbracedLength === 'number' && opts.unbracedLength > 0){
-        const Lb = opts.unbracedLength;
-        const G = opts.G !== undefined ? opts.G : 81e9;
-        const C1 = opts.C1 !== undefined ? opts.C1 : 1.0;
-        const C2 = opts.C2 !== undefined ? opts.C2 : 0.0;
-        const C3 = opts.C3 !== undefined ? opts.C3 : 0.0;
-        const kw = opts.kw !== undefined ? opts.kw : 1.0;
+        Lb = opts.unbracedLength;
         const term_sqrt_1 = (Math.PI * Math.PI * E * Iz) / (Lb * Lb);
         const term_sqrt_2 = Iw / Iz;
         const term_sqrt_3 = (Lb * Lb * G * It) / (Math.PI * Math.PI * E * Iz);
@@ -197,7 +197,8 @@ function computeSectionDesign(name, opts){
         chiLT = 1/(phi + Math.sqrt(phi*phi - lambdaRel*lambdaRel));
         MRdLBA = chiLT*(fy*W/gammaM0);
     }
-    return {EI, MRd, MRdLBA, VRd, W, gamma: gammaM0, material: 'steel', Iw, It, Mcr, chiLT};
+    return {EI, MRd, MRdLBA, VRd, W, gamma: gammaM0, material: 'steel',
+            Iw, It, Iz, Lb, E, G, C1, C2, C3, kw, Mcr, chiLT};
 }
 
 function computeResults(state){
