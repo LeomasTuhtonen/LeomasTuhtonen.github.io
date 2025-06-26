@@ -112,6 +112,26 @@ function computeInertia(cs){
     return Icalc;
 }
 
+function computeWeakAxisInertia(cs){
+    if(!cs) return 0;
+    if(cs.Iz_m4 !== undefined) return cs.Iz_m4;
+    if(cs.series === 'sawn' || cs.series === 'glulam'){
+        const b = cs.b_mm/1000;
+        const h = cs.h_mm/1000;
+        return h*Math.pow(b,3)/12;
+    }
+    const h = cs.h_mm;
+    const b = cs.b_mm;
+    const tw = cs.tw_mm;
+    const tf = cs.tf_mm;
+    if(h===undefined || b===undefined || tw===undefined || tf===undefined)
+        return 0;
+    const hw = h - 2*tf;
+    const Iweb = hw*Math.pow(tw,3)/12;
+    const If = b*Math.pow(tf,3)/12;
+    return (2*If + Iweb)/1e12;
+}
+
 function computeSectionDesign(name, opts){
     const cs = typeof name === 'string' ? getCrossSection(name) : name;
     if(!cs) return null;
@@ -161,8 +181,16 @@ function computeSectionDesign(name, opts){
         const It = ((2*b*Math.pow(tf,3))/3 + (hw*Math.pow(tw,3))/3);
         const y = h/2 - tf/2;
         const Iw = 2*(b*Math.pow(tf,3)/12)*Math.pow(y,2);
+        const Iz = computeWeakAxisInertia(cs);
         const G = opts.G !== undefined ? opts.G : 81e9;
-        const Mcr = Math.PI/Lb*Math.sqrt(E*Iw*G*It)*Math.sqrt(1 + (Math.PI*Math.PI*E*Iw)/(G*It*Lb*Lb));
+        const C1 = opts.C1 !== undefined ? opts.C1 : 1.0;
+        const C2 = opts.C2 !== undefined ? opts.C2 : 0.0;
+        const C3 = opts.C3 !== undefined ? opts.C3 : 0.0;
+        const kw = opts.kw !== undefined ? opts.kw : 1.0;
+        const base = C1*Math.PI/Lb*Math.sqrt(E*Iz*G*It);
+        const term2 = C2*(Math.PI*Math.PI*E*Iw)/(C1*C1*G*It*Lb*Lb);
+        const term3 = C3*(Math.pow(Math.PI,4)*E*E*Iz*Iw)/(C1*C1*G*G*It*It*Math.pow(Lb,4));
+        const Mcr = base*Math.sqrt(kw + term2 + term3);
         const lambdaRel = Math.sqrt((fy*W/gammaM0)/Mcr);
         const alpha = 0.34;
         const phi = 0.5*(1 + alpha*(lambdaRel-0.2) + lambdaRel*lambdaRel);
@@ -329,7 +357,7 @@ function computeDiagrams(state,nodes,reactions){
 
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { computeResults, computeDiagrams, setCrossSections, getSelfWeightLineLoads, getCrossSection, computeSectionDesign, computeInertia };
+    module.exports = { computeResults, computeDiagrams, setCrossSections, getSelfWeightLineLoads, getCrossSection, computeSectionDesign, computeInertia, computeWeakAxisInertia };
 }
 
 if (typeof window !== 'undefined') {
@@ -339,4 +367,5 @@ if (typeof window !== 'undefined') {
     window.getSelfWeightLineLoads = (spans,name)=>getSelfWeightLineLoads(spans,name);
     window.computeSectionDesign = computeSectionDesign;
     window.computeInertia = computeInertia;
+    window.computeWeakAxisInertia = computeWeakAxisInertia;
 }

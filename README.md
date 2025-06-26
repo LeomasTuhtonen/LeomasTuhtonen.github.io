@@ -10,6 +10,8 @@ Features:
 
 The solver uses Euler-Bernoulli beam elements with adjustable element divisions per span.
 
+See [beam_buckling_fixed.md](beam_buckling_fixed.md) for the lateral-torsional buckling equations used when calculating design resistance.
+
 ## Running tests
 
 ```
