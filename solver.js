@@ -177,12 +177,11 @@ function computeSectionDesign(name, opts){
     let MRdLBA = MRd;
     const b = cs.b_mm/1000;
     let It = ((2*b*Math.pow(tf,3))/3 + (hw*Math.pow(tw,3))/3);
-    const y = h/2 - tf/2;
-    let Iw = 2*(b*Math.pow(tf,3)/12)*Math.pow(y,2);
+    const Iz = computeWeakAxisInertia(cs);
+    let Iw = Iz * Math.pow(h - tf, 2) / 4;
     let Mcr, chiLT;
     if(typeof opts.unbracedLength === 'number' && opts.unbracedLength > 0){
         const Lb = opts.unbracedLength;
-        const Iz = computeWeakAxisInertia(cs);
         const G = opts.G !== undefined ? opts.G : 81e9;
         const C1 = opts.C1 !== undefined ? opts.C1 : 1.0;
         const C2 = opts.C2 !== undefined ? opts.C2 : 0.0;
