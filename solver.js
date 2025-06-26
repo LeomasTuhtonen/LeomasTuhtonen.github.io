@@ -133,7 +133,7 @@ function computeSectionDesign(name, opts){
         const MRd = fm*W/gammaM;
         const VRd = fv*Av/gammaM;
         let MRdLBA = MRd;
-        if(opts.unbracedLength){
+        if(typeof opts.unbracedLength === 'number' && opts.unbracedLength > 0){
             const Lb = opts.unbracedLength;
             const b = cs.b_mm/1000;
             const hsec = cs.h_mm/1000;
@@ -155,7 +155,7 @@ function computeSectionDesign(name, opts){
     const Av = hw*tw;
     const VRd = Av*fy/(Math.sqrt(3)*gammaM0);
     let MRdLBA = MRd;
-    if(opts.unbracedLength){
+    if(typeof opts.unbracedLength === 'number' && opts.unbracedLength > 0){
         const Lb = opts.unbracedLength;
         const b = cs.b_mm/1000;
         const It = ((2*b*Math.pow(tf,3))/3 + (hw*Math.pow(tw,3))/3);
