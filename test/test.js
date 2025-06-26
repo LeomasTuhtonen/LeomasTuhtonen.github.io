@@ -48,6 +48,9 @@ function close(actual, expected, tol, msg){
   const design = computeSectionDesign('IPE100', {unbracedLength: 3});
   assert(design.Iw > 0, 'Iw not computed');
   assert(design.It > 0, 'It not computed');
+  assert(design.Iz > 0, 'Iz not computed');
   assert(design.Mcr > 0, 'Mcr not computed');
   assert(design.chiLT > 0 && design.chiLT <= 1, 'chiLT invalid');
+  assert(design.Lb === 3, 'Lb not stored');
+  assert(design.E > 0 && design.G > 0, 'moduli not stored');
 })();

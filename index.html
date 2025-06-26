@@ -199,6 +199,10 @@
             <span id="designIt">-</span>
         </div>
         <div class="input-row">
+            <label>Weak-axis inertia Iz:</label>
+            <span id="designIz">-</span>
+        </div>
+        <div class="input-row">
             <label>Critical moment Mcr:</label>
             <span id="designMcr">-</span>
         </div>
@@ -1178,13 +1182,23 @@ function updateDesignEquations(design){
     } else {
         const iw=design.Iw!==undefined?design.Iw.toExponential(2):'-';
         const it=design.It!==undefined?design.It.toExponential(2):'-';
+        const iz=design.Iz!==undefined?design.Iz.toExponential(2):'-';
+        const lb=design.Lb!==undefined?design.Lb.toFixed(2):'-';
+        const e=design.E!==undefined?(design.E/1e9).toFixed(1):'-';
+        const g=design.G!==undefined?(design.G/1e9).toFixed(1):'-';
+        const c1=design.C1!==undefined?design.C1.toFixed(2):'-';
+        const c2=design.C2!==undefined?design.C2.toFixed(2):'-';
+        const c3=design.C3!==undefined?design.C3.toFixed(2):'-';
+        const kw=design.kw!==undefined?design.kw.toFixed(2):'-';
         const mcr=design.Mcr!==undefined?(design.Mcr/1000).toFixed(1):'-';
         const chi=design.chiLT!==undefined?design.chiLT.toFixed(3):'-';
         div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${mRd}\\ \mathrm{kN\\,m}$$<br>`+
                      `$$M_{Rd,LBA}=\\chi_{LT} \\frac{W f_y}{\\gamma_{M0}}=${mRdLBA}\\ \mathrm{kN\\,m}$$<br>`+
                      `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${vRd}\\ \mathrm{kN}$$<br>`+
-                     `$$I_t=${it}\\ \mathrm{m^4},\ I_w=${iw}\\ \mathrm{m^6}$$<br>`+
-                     `$$M_{cr}=${mcr}\\ \mathrm{kN\\,m},\ \chi_{LT}=${chi}$$`;
+                     `$$I_z=${iz}\\ \mathrm{m^4},\ I_t=${it}\\ \mathrm{m^4},\ I_w=${iw}\\ \mathrm{m^6}$$<br>`+
+                     `$$L_b=${lb}\,\mathrm{m},\ E=${e}\,\mathrm{GPa},\ G=${g}\,\mathrm{GPa}$$<br>`+
+                     `$$C_1=${c1},\ C_2=${c2},\ C_3=${c3},\ k_w=${kw}$$<br>`+
+                     `$$M_{cr}=C_1 \frac{\pi^2 E I_z}{L_b^2} \sqrt{\frac{I_w}{I_z}+\frac{L_b^2 G I_t}{\pi^2 E I_z}}=${mcr}\\ \mathrm{kN\\,m},\ \chi_{LT}=${chi}$$`;
     }
     if(window.MathJax) MathJax.typesetPromise([div]);
 }
@@ -1198,13 +1212,14 @@ function updateDesignProps(name){
     const MRdLBdel=document.getElementById('designMRdLBA');
     const Iwel=document.getElementById('designIw');
     const Itel=document.getElementById('designIt');
+    const IzEl=document.getElementById('designIz');
     const McrEl=document.getElementById('designMcr');
     const chiEl=document.getElementById('designChiLT');
     const VRdel=document.getElementById('designVRd');
     const Mutil=document.getElementById('designMomentUtil');
     const Vutil=document.getElementById('designShearUtil');
     drawSectionGraphic(cs);
-    if(!cs){ EIel.textContent='-'; if(Wel) Wel.textContent='-'; if(gammaEl) gammaEl.textContent='-'; MRdel.textContent='-'; if(MRdLBdel) MRdLBdel.textContent='-'; if(Iwel) Iwel.textContent='-'; if(Itel) Itel.textContent='-'; if(McrEl) McrEl.textContent='-'; if(chiEl) chiEl.textContent='-'; VRdel.textContent='-'; if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
+    if(!cs){ EIel.textContent='-'; if(Wel) Wel.textContent='-'; if(gammaEl) gammaEl.textContent='-'; MRdel.textContent='-'; if(MRdLBdel) MRdLBdel.textContent='-'; if(Iwel) Iwel.textContent='-'; if(Itel) Itel.textContent='-'; if(IzEl) IzEl.textContent='-'; if(McrEl) McrEl.textContent='-'; if(chiEl) chiEl.textContent='-'; VRdel.textContent='-'; if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
     let design=null;
     if(window.computeSectionDesign){
         const Lb=parseFloat(document.getElementById('designLb').value);
@@ -1225,6 +1240,7 @@ function updateDesignProps(name){
         if(MRdLBdel) MRdLBdel.textContent=(design.MRdLBA/1000).toFixed(1)+' kNm';
         if(Iwel && design.Iw!==undefined) Iwel.textContent=design.Iw.toExponential(2)+' m\u2076';
         if(Itel && design.It!==undefined) Itel.textContent=design.It.toExponential(2)+' m\u2074';
+        if(IzEl && design.Iz!==undefined) IzEl.textContent=design.Iz.toExponential(2)+' m\u2074';
         if(McrEl && design.Mcr!==undefined) McrEl.textContent=(design.Mcr/1000).toFixed(1)+' kNm';
         if(chiEl && design.chiLT!==undefined) chiEl.textContent=design.chiLT.toFixed(3);
         VRdel.textContent=(design.VRd/1000).toFixed(1)+' kN';
@@ -1251,6 +1267,7 @@ function updateDesignProps(name){
         if(MRdLBdel) MRdLBdel.textContent='-';
         if(Iwel) Iwel.textContent='-';
         if(Itel) Itel.textContent='-';
+        if(IzEl) IzEl.textContent='-';
         if(McrEl) McrEl.textContent='-';
         if(chiEl) chiEl.textContent='-';
         VRdel.textContent='-';
