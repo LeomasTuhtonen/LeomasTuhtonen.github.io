@@ -1,5 +1,5 @@
 const assert = require('assert');
-const {computeResults} = require('../solver');
+const {computeResults, computeSectionDesign} = require('../solver');
 
 function close(actual, expected, tol, msg){
   if(Math.abs(actual-expected) > tol) throw new Error(msg+` expected ${expected} got ${actual}`);
@@ -41,4 +41,13 @@ function close(actual, expected, tol, msg){
   const {reactions} = computeResults(state);
   close(reactions[2*10], -w*2*L, 1e-2, 'interior support reaction');
   close(reactions[2*20], 0, 1e-6, 'end support reaction');
+})();
+
+// Steel design extra results
+(function testSteelDesignExtras(){
+  const design = computeSectionDesign('IPE100', {unbracedLength: 3});
+  assert(design.Iw > 0, 'Iw not computed');
+  assert(design.It > 0, 'It not computed');
+  assert(design.Mcr > 0, 'Mcr not computed');
+  assert(design.chiLT > 0 && design.chiLT <= 1, 'chiLT invalid');
 })();

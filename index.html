@@ -191,6 +191,22 @@
             <span id="designMRdLBA">-</span>
         </div>
         <div class="input-row">
+            <label>Warping inertia Iw:</label>
+            <span id="designIw">-</span>
+        </div>
+        <div class="input-row">
+            <label>Torsional inertia It:</label>
+            <span id="designIt">-</span>
+        </div>
+        <div class="input-row">
+            <label>Critical moment Mcr:</label>
+            <span id="designMcr">-</span>
+        </div>
+        <div class="input-row">
+            <label>Reduction factor χ<sub>LT</sub>:</label>
+            <span id="designChiLT">-</span>
+        </div>
+        <div class="input-row">
             <label>Shear resistance V,Rd:</label>
             <span id="designVRd">-</span>
         </div>
@@ -1160,9 +1176,15 @@ function updateDesignEquations(design){
                      `$$M_{Rd,LBA}=k_{crit} W f_{m,d}=${mRdLBA}\\ \mathrm{kN\\,m}$$<br>`+
                      `$$V_{Rd}=\\frac{A_v f_{v,k}}{\\gamma_M}=${vRd}\\ \mathrm{kN}$$`;
     } else {
+        const iw=design.Iw!==undefined?design.Iw.toExponential(2):'-';
+        const it=design.It!==undefined?design.It.toExponential(2):'-';
+        const mcr=design.Mcr!==undefined?(design.Mcr/1000).toFixed(1):'-';
+        const chi=design.chiLT!==undefined?design.chiLT.toFixed(3):'-';
         div.innerHTML=`$$M_{Rd}=\\frac{W f_y}{\\gamma_{M0}}=${mRd}\\ \mathrm{kN\\,m}$$<br>`+
                      `$$M_{Rd,LBA}=\\chi_{LT} \\frac{W f_y}{\\gamma_{M0}}=${mRdLBA}\\ \mathrm{kN\\,m}$$<br>`+
-                     `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${vRd}\\ \mathrm{kN}$$`;
+                     `$$V_{Rd}=\\frac{A_v f_y}{\\sqrt{3}\\,\\gamma_{M0}}=${vRd}\\ \mathrm{kN}$$<br>`+
+                     `$$I_t=${it}\\ \mathrm{m^4},\ I_w=${iw}\\ \mathrm{m^6}$$<br>`+
+                     `$$M_{cr}=${mcr}\\ \mathrm{kN\\,m},\ \chi_{LT}=${chi}$$`;
     }
     if(window.MathJax) MathJax.typesetPromise([div]);
 }
@@ -1174,11 +1196,15 @@ function updateDesignProps(name){
     const gammaEl=document.getElementById('designGamma');
     const MRdel=document.getElementById('designMRd');
     const MRdLBdel=document.getElementById('designMRdLBA');
+    const Iwel=document.getElementById('designIw');
+    const Itel=document.getElementById('designIt');
+    const McrEl=document.getElementById('designMcr');
+    const chiEl=document.getElementById('designChiLT');
     const VRdel=document.getElementById('designVRd');
     const Mutil=document.getElementById('designMomentUtil');
     const Vutil=document.getElementById('designShearUtil');
     drawSectionGraphic(cs);
-    if(!cs){ EIel.textContent='-'; if(Wel) Wel.textContent='-'; if(gammaEl) gammaEl.textContent='-'; MRdel.textContent='-'; if(MRdLBdel) MRdLBdel.textContent='-'; VRdel.textContent='-'; if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
+    if(!cs){ EIel.textContent='-'; if(Wel) Wel.textContent='-'; if(gammaEl) gammaEl.textContent='-'; MRdel.textContent='-'; if(MRdLBdel) MRdLBdel.textContent='-'; if(Iwel) Iwel.textContent='-'; if(Itel) Itel.textContent='-'; if(McrEl) McrEl.textContent='-'; if(chiEl) chiEl.textContent='-'; VRdel.textContent='-'; if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
     let design=null;
     if(window.computeSectionDesign){
         const Lb=parseFloat(document.getElementById('designLb').value);
@@ -1197,6 +1223,10 @@ function updateDesignProps(name){
     if(design){
         MRdel.textContent=(design.MRd/1000).toFixed(1)+' kNm';
         if(MRdLBdel) MRdLBdel.textContent=(design.MRdLBA/1000).toFixed(1)+' kNm';
+        if(Iwel && design.Iw!==undefined) Iwel.textContent=design.Iw.toExponential(2)+' m\u2076';
+        if(Itel && design.It!==undefined) Itel.textContent=design.It.toExponential(2)+' m\u2074';
+        if(McrEl && design.Mcr!==undefined) McrEl.textContent=(design.Mcr/1000).toFixed(1)+' kNm';
+        if(chiEl && design.chiLT!==undefined) chiEl.textContent=design.chiLT.toFixed(3);
         VRdel.textContent=(design.VRd/1000).toFixed(1)+' kN';
         updateDesignEquations(design);
         if(state.envelopeForces){
@@ -1219,6 +1249,10 @@ function updateDesignProps(name){
     } else {
         MRdel.textContent='-';
         if(MRdLBdel) MRdLBdel.textContent='-';
+        if(Iwel) Iwel.textContent='-';
+        if(Itel) Itel.textContent='-';
+        if(McrEl) McrEl.textContent='-';
+        if(chiEl) chiEl.textContent='-';
         VRdel.textContent='-';
         if(Mutil){ Mutil.textContent='-'; Mutil.style.color=''; }
         if(Vutil){ Vutil.textContent='-'; Vutil.style.color=''; }
