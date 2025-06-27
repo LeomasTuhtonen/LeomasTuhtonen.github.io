@@ -27,6 +27,10 @@
         #tabs button { padding:6px 12px; margin:0 5px; border:none; border-radius:4px; cursor:pointer; background:#ddd; }
         #tabs button.active { background:#4CAF50; color:white; }
         .tabcontent { display:none; }
+        #designLayout { display:flex; flex-wrap:wrap; gap:20px; }
+        #designLeft { flex:1 1 300px; max-width:400px; }
+        #designDiagram { flex:1 1 300px; display:flex; align-items:center; justify-content:center; }
+        #designDiagram svg { width:100%; height:auto; }
     </style>
 </head>
 <body>
@@ -138,94 +142,111 @@
     </div> <!-- end analysisTab -->
 
     <div id="designTab" class="tabcontent">
-    <div class="section">
-        <h2>Cross-section Design</h2>
-        <div class="input-row">
-            <label>Material:</label>
-            <select id="designMaterialSelect">
-                <option value="steel" selected>Steel</option>
-                <option value="timber">Timber</option>
-            </select>
+    <div id="designLayout">
+        <div id="designLeft">
+            <div id="designInputs" class="section">
+                <h2>Design Inputs</h2>
+                <div class="input-row">
+                    <label>Material:</label>
+                    <select id="designMaterialSelect">
+                        <option value="steel" selected>Steel</option>
+                        <option value="timber">Timber</option>
+                    </select>
+                </div>
+                <div class="input-row">
+                    <label>Section:</label>
+                    <select id="designSectionSelect"></select>
+                </div>
+                <div class="input-row">
+                    <label>Steel grade:</label>
+                    <select id="steelSelect">
+                        <option value="235">S235</option>
+                        <option value="355" selected>S355</option>
+                        <option value="450">S450</option>
+                    </select>
+                </div>
+                <div class="input-row" id="timberGradeRow">
+                    <label>Timber grade:</label>
+                    <select id="timberSelect">
+                        <option value="C24" selected>C24</option>
+                        <option value="GL30c">GL30c</option>
+                    </select>
+                </div>
+                <div class="input-row">
+                    <label>Lateral bracing length:</label>
+                    <input type="number" id="designLb" value="3" step="0.1" />
+                </div>
+            </div>
+
+            <div id="designUtilizations" class="section">
+                <h2>Utilization</h2>
+                <div class="input-row">
+                    <label>Bending:</label>
+                    <span id="designBendingUtil">-</span>
+                </div>
+                <div class="input-row">
+                    <label>Bending + LTB:</label>
+                    <span id="designMomentUtil">-</span>
+                </div>
+                <div class="input-row">
+                    <label>Shear:</label>
+                    <span id="designShearUtil">-</span>
+                </div>
+            </div>
+
+            <div id="designDetails" class="section">
+                <h2>Details</h2>
+                <div class="input-row">
+                    <label>Bending stiffness EI:</label>
+                    <span id="designEI">-</span>
+                </div>
+                <div class="input-row">
+                    <label>Section modulus W:</label>
+                    <span id="designW">-</span>
+                </div>
+                <div class="input-row">
+                    <label>Safety factor γ:</label>
+                    <span id="designGamma">-</span>
+                </div>
+                <div class="input-row">
+                    <label>Bending resistance M,Rd:</label>
+                    <span id="designMRd">-</span>
+                </div>
+                <div class="input-row">
+                    <label>M,Rd,LBA:</label>
+                    <span id="designMRdLBA">-</span>
+                </div>
+                <div class="input-row">
+                    <label>Warping inertia Iw:</label>
+                    <span id="designIw">-</span>
+                </div>
+                <div class="input-row">
+                    <label>Torsional inertia It:</label>
+                    <span id="designIt">-</span>
+                </div>
+                <div class="input-row">
+                    <label>Weak-axis inertia Iz:</label>
+                    <span id="designIz">-</span>
+                </div>
+                <div class="input-row">
+                    <label>Critical moment Mcr:</label>
+                    <span id="designMcr">-</span>
+                </div>
+                <div class="input-row">
+                    <label>Reduction factor χ<sub>LT</sub>:</label>
+                    <span id="designChiLT">-</span>
+                </div>
+                <div class="input-row">
+                    <label>Shear resistance V,Rd:</label>
+                    <span id="designVRd">-</span>
+                </div>
+                <div class="input-row" id="designEquations"></div>
+            </div>
         </div>
-        <div class="input-row">
-            <label>Section:</label>
-            <select id="designSectionSelect"></select>
+
+        <div id="designDiagram" class="section">
+            <svg id="sectionSvg" viewBox="0 0 300 200" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cross-section" style="width:100%; height:auto; border:1px solid #ccc;"></svg>
         </div>
-        <div class="input-row">
-            <label>Steel grade:</label>
-            <select id="steelSelect">
-                <option value="235">S235</option>
-                <option value="355" selected>S355</option>
-                <option value="450">S450</option>
-            </select>
-        </div>
-        <div class="input-row" id="timberGradeRow">
-            <label>Timber grade:</label>
-            <select id="timberSelect">
-                <option value="C24" selected>C24</option>
-                <option value="GL30c">GL30c</option>
-            </select>
-        </div>
-        <div class="input-row">
-            <label>Bending stiffness EI:</label>
-            <span id="designEI">-</span>
-        </div>
-        <div class="input-row">
-            <label>Section modulus W:</label>
-            <span id="designW">-</span>
-        </div>
-        <div class="input-row">
-            <label>Safety factor γ:</label>
-            <span id="designGamma">-</span>
-        </div>
-        <div class="input-row">
-            <label>Lateral bracing length:</label>
-            <input type="number" id="designLb" value="3" step="0.1" />
-        </div>
-        <div class="input-row">
-            <label>Bending resistance M,Rd:</label>
-            <span id="designMRd">-</span>
-        </div>
-        <div class="input-row">
-            <label>M,Rd,LBA:</label>
-            <span id="designMRdLBA">-</span>
-        </div>
-        <div class="input-row">
-            <label>Warping inertia Iw:</label>
-            <span id="designIw">-</span>
-        </div>
-        <div class="input-row">
-            <label>Torsional inertia It:</label>
-            <span id="designIt">-</span>
-        </div>
-        <div class="input-row">
-            <label>Weak-axis inertia Iz:</label>
-            <span id="designIz">-</span>
-        </div>
-        <div class="input-row">
-            <label>Critical moment Mcr:</label>
-            <span id="designMcr">-</span>
-        </div>
-        <div class="input-row">
-            <label>Reduction factor χ<sub>LT</sub>:</label>
-            <span id="designChiLT">-</span>
-        </div>
-        <div class="input-row">
-            <label>Shear resistance V,Rd:</label>
-            <span id="designVRd">-</span>
-        </div>
-        <div class="input-row">
-            <label>Bending utilization:</label>
-            <span id="designMomentUtil">-</span>
-        </div>
-        <div class="input-row">
-            <label>Shear utilization:</label>
-            <span id="designShearUtil">-</span>
-        </div>
-        <div class="input-row">
-            <svg id="sectionSvg" width="300" height="200" style="border:1px solid #ccc;" viewBox="0 0 300 200" role="img" aria-label="Cross-section"></svg>
-        </div>
-        <div class="input-row" id="designEquations"></div>
     </div>
     </div> <!-- end designTab -->
 
@@ -1219,10 +1240,11 @@ function updateDesignProps(name){
     const McrEl=document.getElementById('designMcr');
     const chiEl=document.getElementById('designChiLT');
     const VRdel=document.getElementById('designVRd');
+    const MbendUtil=document.getElementById('designBendingUtil');
     const Mutil=document.getElementById('designMomentUtil');
     const Vutil=document.getElementById('designShearUtil');
     drawSectionGraphic(cs);
-    if(!cs){ EIel.textContent='-'; if(Wel) Wel.textContent='-'; if(gammaEl) gammaEl.textContent='-'; MRdel.textContent='-'; if(MRdLBdel) MRdLBdel.textContent='-'; if(Iwel) Iwel.textContent='-'; if(Itel) Itel.textContent='-'; if(IzEl) IzEl.textContent='-'; if(McrEl) McrEl.textContent='-'; if(chiEl) chiEl.textContent='-'; VRdel.textContent='-'; if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
+    if(!cs){ EIel.textContent='-'; if(Wel) Wel.textContent='-'; if(gammaEl) gammaEl.textContent='-'; MRdel.textContent='-'; if(MRdLBdel) MRdLBdel.textContent='-'; if(Iwel) Iwel.textContent='-'; if(Itel) Itel.textContent='-'; if(IzEl) IzEl.textContent='-'; if(McrEl) McrEl.textContent='-'; if(chiEl) chiEl.textContent='-'; VRdel.textContent='-'; if(MbendUtil) { MbendUtil.textContent='-'; MbendUtil.style.color=''; } if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
     let design=null;
     if(window.computeSectionDesign){
         const Lb=parseFloat(document.getElementById('designLb').value);
@@ -1252,6 +1274,11 @@ function updateDesignProps(name){
         if(state.envelopeForces){
             const mAbs=Math.max(Math.abs(state.envelopeForces.minMoment), Math.abs(state.envelopeForces.maxMoment));
             const vAbs=Math.max(Math.abs(state.envelopeForces.minShear), Math.abs(state.envelopeForces.maxShear));
+            if(MbendUtil){
+                const valB=(100*mAbs/design.MRd);
+                MbendUtil.textContent=valB.toFixed(1)+'%';
+                MbendUtil.style.color=valB<=100?'green':'red';
+            }
             if(Mutil){
                 const val=(100*mAbs/design.MRdLBA);
                 Mutil.textContent=val.toFixed(1)+'%';
@@ -1263,6 +1290,7 @@ function updateDesignProps(name){
                 Vutil.style.color=val<=100?'green':'red';
             }
         } else {
+            if(MbendUtil){ MbendUtil.textContent='-'; MbendUtil.style.color=''; }
             if(Mutil){ Mutil.textContent='-'; Mutil.style.color=''; }
             if(Vutil){ Vutil.textContent='-'; Vutil.style.color=''; }
         }
@@ -1275,6 +1303,7 @@ function updateDesignProps(name){
         if(McrEl) McrEl.textContent='-';
         if(chiEl) chiEl.textContent='-';
         VRdel.textContent='-';
+        if(MbendUtil){ MbendUtil.textContent='-'; MbendUtil.style.color=''; }
         if(Mutil){ Mutil.textContent='-'; Mutil.style.color=''; }
         if(Vutil){ Vutil.textContent='-'; Vutil.style.color=''; }
         updateDesignEquations(null);
