@@ -1,4 +1,4 @@
-# structural-calc
+# Beam Calculator
 
 A browser-based beam calculator using 2D finite element analysis. Simply open
 `index.html` in a modern web browser to get started.
