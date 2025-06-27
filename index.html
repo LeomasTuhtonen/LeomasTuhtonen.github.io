@@ -289,7 +289,7 @@ const timberGrades = {
 function getFilteredSectionNames(){
     if(state.material==='timber'){
         const grade=document.getElementById('timberSelect')?.value;
-        const series=grade==='GL30c'?'glulam':'sawn';
+        const series=/^GL/i.test(grade)?'glulam':'sawn';
         return Object.keys(timberSections).filter(n=>timberSections[n].series===series);
     }
     return Object.keys(crossSections);
