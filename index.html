@@ -66,6 +66,21 @@
                 <option value="timber">Timber</option>
             </select>
         </div>
+        <div class="input-row steel-grade-row">
+            <label>Steel grade:</label>
+            <select id="analysisSteelSelect" class="steel-grade">
+                <option value="235">S235</option>
+                <option value="355" selected>S355</option>
+                <option value="450">S450</option>
+            </select>
+        </div>
+        <div class="input-row timber-grade-row">
+            <label>Timber grade:</label>
+            <select id="analysisTimberSelect" class="timber-grade">
+                <option value="C24" selected>C24</option>
+                <option value="GL30c">GL30c</option>
+            </select>
+        </div>
         <div class="input-row">
             <label>Cross-section:</label>
             <select id="sectionSelect"></select>
@@ -153,17 +168,17 @@
                         <option value="timber">Timber</option>
                     </select>
                 </div>
-                <div class="input-row" id="steelGradeRow">
+                <div class="input-row steel-grade-row" id="steelGradeRow">
                     <label>Steel grade:</label>
-                    <select id="steelSelect">
+                    <select id="steelSelect" class="steel-grade">
                         <option value="235">S235</option>
                         <option value="355" selected>S355</option>
                         <option value="450">S450</option>
                     </select>
                 </div>
-                <div class="input-row" id="timberGradeRow">
+                <div class="input-row timber-grade-row" id="timberGradeRow">
                     <label>Timber grade:</label>
-                    <select id="timberSelect">
+                    <select id="timberSelect" class="timber-grade">
                         <option value="C24" selected>C24</option>
                         <option value="GL30c">GL30c</option>
                     </select>
@@ -288,7 +303,7 @@ const timberGrades = {
 
 function getFilteredSectionNames(){
     if(state.material==='timber'){
-        const grade=document.getElementById('timberSelect')?.value;
+        const grade=document.querySelector('.timber-grade')?.value;
         const series=/^GL/i.test(grade)?'glulam':'sawn';
         return Object.keys(timberSections).filter(n=>timberSections[n].series===series);
     }
@@ -652,16 +667,20 @@ document.getElementById('resultsSelect').onchange=function(){
     solveSelected();
 };
 function updateMaterialUI(){
-    const steelRow=document.getElementById('steelGradeRow');
-    if(steelRow) steelRow.style.display=state.material==='steel'?'flex':'none';
-    const timberRow=document.getElementById('timberGradeRow');
-    if(timberRow) timberRow.style.display=state.material==='timber'?'flex':'none';
+    document.querySelectorAll('.steel-grade-row').forEach(r=>{
+        r.style.display=state.material==='steel'?'flex':'none';
+    });
+    document.querySelectorAll('.timber-grade-row').forEach(r=>{
+        r.style.display=state.material==='timber'?'flex':'none';
+    });
 }
 document.getElementById('materialSelect').onchange=function(){
     state.material=this.value;
     if(this.value==='timber'){
-        const g=timberGrades[document.getElementById('timberSelect').value];
-        state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; populateTimberSelect();
+        const grade=document.querySelector('.timber-grade')?.value;
+        const g=timberGrades[grade];
+        if(g){ state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; }
+        populateTimberSelect();
     } else {
         state.E=210e9; populateSteelSelect();
     }
@@ -672,8 +691,10 @@ document.getElementById('materialSelect').onchange=function(){
 document.getElementById('designMaterialSelect').onchange=function(){
     state.material=this.value;
     if(this.value==='timber'){
-        const g=timberGrades[document.getElementById('timberSelect').value];
-        state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; populateTimberSelect();
+        const grade=document.querySelector('.timber-grade')?.value;
+        const g=timberGrades[grade];
+        if(g){ state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; }
+        populateTimberSelect();
     } else {
         state.E=210e9; populateSteelSelect();
     }
@@ -1057,21 +1078,26 @@ function populateDesignSelect(){
 }
 
 function populateSteelSelect(){
-    const sel=document.getElementById('steelSelect');
-    if(!sel) return;
-    state.fy=parseFloat(sel.value)*1e6;
-    sel.onchange=function(){
-        state.fy=parseFloat(this.value)*1e6;
+    const sels=document.querySelectorAll('.steel-grade');
+    if(!sels.length) return;
+    const apply=val=>{
+        state.fy=parseFloat(val)*1e6;
+        sels.forEach(s=>{ if(s.value!==val) s.value=val; });
         updateDesignProps(document.getElementById('designSectionSelect').value);
     };
+    sels.forEach(sel=>{
+        sel.onchange=function(){ apply(this.value); };
+    });
+    apply(sels[0].value);
 }
 
 function populateTimberSelect(){
-    const sel=document.getElementById('timberSelect');
-    if(!sel) return;
-    const apply=()=>{
-        const g=timberGrades[sel.value];
+    const sels=document.querySelectorAll('.timber-grade');
+    if(!sels.length) return;
+    const apply=val=>{
+        const g=timberGrades[val];
         if(!g) return;
+        sels.forEach(s=>{ if(s.value!==val) s.value=val; });
         state.E=g.E;
         state.fm_k=g.fm_k;
         state.fv_k=g.fv_k;
@@ -1079,23 +1105,20 @@ function populateTimberSelect(){
         populateSectionSelect();
         updateDesignProps(document.getElementById('designSectionSelect').value);
     };
-    sel.onchange=apply;
-    apply();
+    sels.forEach(sel=>{ sel.onchange=function(){ apply(this.value); }; });
+    apply(sels[0].value);
 }
 
 function restrictTimberGrade(series){
-    const sel=document.getElementById('timberSelect');
-    if(!sel) return;
-    const prev=sel.value;
-    if(series==='sawn'){
-        sel.value='C24';
-    } else if(series==='glulam'){
-        sel.value='GL30c';
-    }
-    if(sel.value!==prev){
-        sel.dispatchEvent(new Event('change'));
-    }
-    const g=timberGrades[sel.value];
+    const sels=document.querySelectorAll('.timber-grade');
+    if(!sels.length) return;
+    sels.forEach(sel=>{
+        const prev=sel.value;
+        if(series==='sawn') sel.value='C24';
+        else if(series==='glulam') sel.value='GL30c';
+        if(sel.value!==prev) sel.dispatchEvent(new Event('change'));
+    });
+    const g=timberGrades[sels[0].value];
     if(g){ state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; }
     // Avoid infinite recursion by not repopulating the section list here.
     // The caller should refresh the options when necessary.

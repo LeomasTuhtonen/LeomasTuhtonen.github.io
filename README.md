@@ -1,12 +1,16 @@
 # structural-calc
 
-A simple browser-based beam calculator using 2D finite element analysis. No installation is required; just open `index.html` in a modern web browser.
+A browser-based beam calculator using 2D finite element analysis. Simply open
+`index.html` in a modern web browser to get started.
 
 Features:
-- Define any number of spans and lengths.
-- Choose from a list of common European steel cross-sections (IPE/HEA) or enter your own moment of inertia.
-- Add point and line loads at arbitrary locations.
-- Results update automatically showing support reactions and diagrams for shear force, bending moment and deflection using modern charts.
+- Define any number of spans with adjustable node spacing.
+- Built-in steel and timber cross-section libraries with grade selection.
+- Automatic self weight plus customizable point and line loads.
+- User-defined load combinations.
+- Live charts for loads, shear, bending moment and deflection.
+- Design tab showing section properties and checks for bending, shear and lateral-torsional buckling.
+- Export analysis results to PDF.
 
 The solver uses Euler-Bernoulli beam elements with adjustable element divisions per span.
 
