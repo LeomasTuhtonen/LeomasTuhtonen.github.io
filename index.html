@@ -174,7 +174,7 @@
                 </div>
                 <div class="input-row">
                     <label>Lateral bracing length:</label>
-                    <input type="number" id="designLb" value="3" step="0.1" />
+                    <input type="number" id="designLb" value="1" step="0.1" /> m
                 </div>
             </div>
 
@@ -213,7 +213,7 @@
                     <span id="designMRd">-</span>
                 </div>
                 <div class="input-row">
-                    <label>M,Rd,LBA:</label>
+                    <label>M,Rd, LTB:</label>
                     <span id="designMRdLBA">-</span>
                 </div>
                 <div class="input-row">
@@ -1075,9 +1075,9 @@ function populateTimberSelect(){
         state.E=g.E;
         state.fm_k=g.fm_k;
         state.fv_k=g.fv_k;
-        updateDesignProps(document.getElementById('designSectionSelect').value);
         populateSectionSelect();
         populateDesignSelect();
+        updateDesignProps(document.getElementById('designSectionSelect').value);
     };
     sel.onchange=apply;
     apply();
@@ -1247,7 +1247,7 @@ function updateDesignEquations(design){
     const vRd=(design.VRd/1000).toFixed(1);
     if(design.material==='timber'){
         div.innerHTML=String.raw`$$M_{Rd}=\frac{W f_{m,k}}{\gamma_M}=${disp(mRd)}\,\mathrm{kN\,m}$$<br>`+
-                     String.raw`$$M_{Rd,LBA}=k_{crit} W f_{m,d}=${disp(mRdLBA)}\,\mathrm{kN\,m}$$<br>`+
+                     String.raw`$$M_{Rd,LTB}=k_{crit} W f_{m,d}=${disp(mRdLBA)}\,\mathrm{kN\,m}$$<br>`+
                      String.raw`$$V_{Rd}=\frac{A_v f_{v,k}}{\gamma_M}=${disp(vRd)}\,\mathrm{kN}$$`;
     } else {
         const iw=design.Iw!==undefined?design.Iw.toExponential(2):'-';
@@ -1263,7 +1263,7 @@ function updateDesignEquations(design){
         const mcr=design.Mcr!==undefined?(design.Mcr/1000).toFixed(1):'-';
         const chi=design.chiLT!==undefined?design.chiLT.toFixed(3):'-';
         div.innerHTML=String.raw`$$M_{Rd}=\frac{W f_y}{\gamma_{M0}}=${disp(mRd)}\,\mathrm{kN\,m}$$<br>`+
-                     String.raw`$$M_{Rd,LBA}=\chi_{LT} \frac{W f_y}{\gamma_{M0}}=${disp(mRdLBA)}\,\mathrm{kN\,m}$$<br>`+
+                     String.raw`$$M_{Rd,LTB}=\chi_{LT} \frac{W f_y}{\gamma_{M0}}=${disp(mRdLBA)}\,\mathrm{kN\,m}$$<br>`+
                      String.raw`$$V_{Rd}=\frac{A_v f_y}{\sqrt{3}\,\gamma_{M0}}=${disp(vRd)}\,\mathrm{kN}$$<br>`+
                      String.raw`$$I_z=${disp(iz)}\,\mathrm{m^4},\ I_t=${disp(it)}\,\mathrm{m^4},\ I_w=${disp(iw)}\,\mathrm{m^6}$$<br>`+
                      String.raw`$$L_b=${disp(lb)}\,\mathrm{m},\ E=${disp(e)}\,\mathrm{GPa},\ G=${disp(g)}\,\mathrm{GPa}$$<br>`+
