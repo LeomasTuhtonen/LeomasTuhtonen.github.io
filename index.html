@@ -29,8 +29,8 @@
         .tabcontent { display:none; }
         #designLayout { display:flex; flex-wrap:wrap; gap:20px; }
         #designLeft { flex:1 1 300px; max-width:400px; }
-        #designDiagram { flex:1 1 300px; max-width:400px; display:flex; align-items:center; justify-content:center; }
-        #designDiagram svg { width:100%; height:auto; max-height:350px; }
+        #designDiagram { flex:1 1 400px; max-width:500px; display:flex; align-items:center; justify-content:center; }
+        #designDiagram svg { width:100%; height:auto; max-height:450px; }
     </style>
 </head>
 <body>
@@ -284,10 +284,19 @@ const timberGrades = {
     C24: {E:11e9,fm_k:24e6,fv_k:4e6},
     GL30c: {E:13e9,fm_k:30e6,fv_k:4e6}
 };
+
+function getFilteredSectionNames(){
+    if(state.material==='timber'){
+        const grade=document.getElementById('timberSelect')?.value;
+        const series=grade==='GL30c'?'glulam':'sawn';
+        return Object.keys(timberSections).filter(n=>timberSections[n].series===series);
+    }
+    return Object.keys(crossSections);
+}
 function populateSectionSelect(){
     const sel = document.getElementById("sectionSelect");
     sel.innerHTML='';
-    Object.keys(crossSections)
+    getFilteredSectionNames()
         .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))
         .forEach(name=>{
         const opt=document.createElement("option");
@@ -1020,7 +1029,7 @@ function populateDesignSelect(){
     const sel=document.getElementById('designSectionSelect');
     if(!sel) return;
     sel.innerHTML='';
-    Object.keys(crossSections)
+    getFilteredSectionNames()
         .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))
         .forEach(name=>{
             const opt=document.createElement('option');
@@ -1062,6 +1071,8 @@ function populateTimberSelect(){
         state.fm_k=g.fm_k;
         state.fv_k=g.fv_k;
         updateDesignProps(document.getElementById('designSectionSelect').value);
+        populateSectionSelect();
+        populateDesignSelect();
     };
     sel.onchange=apply;
     apply();
@@ -1080,6 +1091,8 @@ function restrictTimberGrade(series){
     }
     const g=timberGrades[sel.value];
     if(g){ state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; }
+    populateSectionSelect();
+    populateDesignSelect();
 }
 
 function computeSectionOutline(cs){
