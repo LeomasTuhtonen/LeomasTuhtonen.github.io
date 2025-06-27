@@ -29,8 +29,8 @@
         .tabcontent { display:none; }
         #designLayout { display:flex; flex-wrap:wrap; gap:20px; }
         #designLeft { flex:1 1 300px; max-width:400px; }
-        #designDiagram { flex:1 1 300px; display:flex; align-items:center; justify-content:center; }
-        #designDiagram svg { width:100%; height:auto; }
+        #designDiagram { flex:1 1 300px; max-width:400px; display:flex; align-items:center; justify-content:center; }
+        #designDiagram svg { width:100%; height:auto; max-height:350px; }
     </style>
 </head>
 <body>
@@ -153,11 +153,7 @@
                         <option value="timber">Timber</option>
                     </select>
                 </div>
-                <div class="input-row">
-                    <label>Section:</label>
-                    <select id="designSectionSelect"></select>
-                </div>
-                <div class="input-row">
+                <div class="input-row" id="steelGradeRow">
                     <label>Steel grade:</label>
                     <select id="steelSelect">
                         <option value="235">S235</option>
@@ -171,6 +167,10 @@
                         <option value="C24" selected>C24</option>
                         <option value="GL30c">GL30c</option>
                     </select>
+                </div>
+                <div class="input-row">
+                    <label>Section:</label>
+                    <select id="designSectionSelect"></select>
                 </div>
                 <div class="input-row">
                     <label>Lateral bracing length:</label>
@@ -638,7 +638,7 @@ document.getElementById('resultsSelect').onchange=function(){
     solveSelected();
 };
 function updateMaterialUI(){
-    const steelRow=document.getElementById('steelSelect').parentElement;
+    const steelRow=document.getElementById('steelGradeRow');
     if(steelRow) steelRow.style.display=state.material==='steel'?'flex':'none';
     const timberRow=document.getElementById('timberGradeRow');
     if(timberRow) timberRow.style.display=state.material==='timber'?'flex':'none';
@@ -672,6 +672,9 @@ document.getElementById('sectionSelect').onchange=function(){
     state.section=name;
     if(crossSections[name]){
         const cs=crossSections[name];
+        if(state.material==='timber' && cs.series){
+            restrictTimberGrade(cs.series);
+        }
         state.I = cs.I_y !== undefined ? cs.I_y : (cs.Iy_m4 !== undefined ? cs.Iy_m4 : (cs.Iz_m4 !== undefined ? cs.Iz_m4 : cs.I_z));
         document.getElementById('inertiaInput').value=state.I;
         updateSectionProps(name);
@@ -1024,8 +1027,18 @@ function populateDesignSelect(){
             opt.value=name; opt.textContent=name;
             sel.appendChild(opt);
         });
-    sel.onchange=function(){ updateDesignProps(this.value); };
+    sel.onchange=function(){
+        const cs=crossSections[this.value];
+        if(state.material==='timber' && cs && cs.series){
+            restrictTimberGrade(cs.series);
+        }
+        updateDesignProps(this.value);
+    };
     sel.selectedIndex=0;
+    const firstCs=crossSections[sel.value];
+    if(state.material==='timber' && firstCs && firstCs.series){
+        restrictTimberGrade(firstCs.series);
+    }
     updateDesignProps(sel.value);
 }
 
@@ -1052,6 +1065,21 @@ function populateTimberSelect(){
     };
     sel.onchange=apply;
     apply();
+}
+
+function restrictTimberGrade(series){
+    const sel=document.getElementById('timberSelect');
+    if(!sel) return;
+    Array.from(sel.options).forEach(opt=>{ opt.disabled=false; });
+    if(series==='sawn'){
+        sel.value='C24';
+        Array.from(sel.options).forEach(opt=>{ opt.disabled=opt.value!=='C24'; });
+    } else if(series==='glulam'){
+        sel.value='GL30c';
+        Array.from(sel.options).forEach(opt=>{ opt.disabled=opt.value!=='GL30c'; });
+    }
+    const g=timberGrades[sel.value];
+    if(g){ state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; }
 }
 
 function computeSectionOutline(cs){
@@ -1229,6 +1257,9 @@ function updateDesignEquations(design){
 
 function updateDesignProps(name){
     const cs=crossSections[name];
+    if(state.material==='timber' && cs && cs.series){
+        restrictTimberGrade(cs.series);
+    }
     const EIel=document.getElementById('designEI');
     const Wel=document.getElementById('designW');
     const gammaEl=document.getElementById('designGamma');
