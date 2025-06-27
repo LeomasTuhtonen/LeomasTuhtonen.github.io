@@ -1096,7 +1096,8 @@ function restrictTimberGrade(series){
     }
     const g=timberGrades[sel.value];
     if(g){ state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; }
-    populateSectionSelect();
+    // Avoid infinite recursion by not repopulating the section list here.
+    // The caller should refresh the options when necessary.
 }
 
 function computeSectionOutline(cs){
