@@ -253,6 +253,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script src="./steel_cross_sections_data.js"></script>
+    <script src="./timber_cross_sections_data.js"></script>
     <script src="./solver.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
     <script>
@@ -342,7 +343,11 @@ function loadCrossSections(){
     } else {
         promises.push(fetch('./steel_cross_sections.json').then(r=>r.json()).then(d=>{steelSections={};d.forEach(cs=>{steelSections[cs.profile]=cs;});}));
     }
-    promises.push(fetch('./timber_cross_sections.json').then(r=>r.json()).then(d=>{timberSections={};d.forEach(cs=>{timberSections[cs.profile]=cs;});}));
+    if(window.timberCrossSectionsData){
+        timberSections = window.timberCrossSectionsData;
+    } else {
+        promises.push(fetch('./timber_cross_sections.json').then(r=>r.json()).then(d=>{timberSections={};d.forEach(cs=>{timberSections[cs.profile]=cs;});}));
+    }
     Promise.all(promises).then(()=>{
         setMaterial(state.material || 'steel');
     });
