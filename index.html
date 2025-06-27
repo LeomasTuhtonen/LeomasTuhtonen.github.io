@@ -1086,13 +1086,10 @@ function populateTimberSelect(){
 function restrictTimberGrade(series){
     const sel=document.getElementById('timberSelect');
     if(!sel) return;
-    Array.from(sel.options).forEach(opt=>{ opt.disabled=false; });
     if(series==='sawn'){
         sel.value='C24';
-        Array.from(sel.options).forEach(opt=>{ opt.disabled=opt.value!=='C24'; });
     } else if(series==='glulam'){
         sel.value='GL30c';
-        Array.from(sel.options).forEach(opt=>{ opt.disabled=opt.value!=='GL30c'; });
     }
     const g=timberGrades[sel.value];
     if(g){ state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; }
