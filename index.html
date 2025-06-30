@@ -36,6 +36,10 @@
         .frame-row .cell { display:flex; flex-direction:column; }
         .frame-row .cell input,
         .frame-row .cell select { width:70px; }
+        #frameLayout { display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; }
+        #frameControls { flex:1 1 250px; max-width:350px; }
+        #frameDiagram { flex:2 1 400px; min-height:520px; }
+        #frameDiagram canvas { width:100%; height:100%; max-height:600px; }
     </style>
 </head>
 <body>
@@ -272,29 +276,35 @@
     </div> <!-- end designTab -->
 
     <div id="frameTab" class="tabcontent">
-        <div class="section">
-            <h2>Beams</h2>
-            <div id="frameBeams"></div>
-            <button onclick="addFrameBeam()">Add Beam</button>
-        </div>
-        <div class="section">
-            <h2>Supports</h2>
-            <div id="frameSupports"></div>
-            <button onclick="addFrameSupport()">Add Support</button>
-        </div>
-        <div class="section">
-            <h2>Point Loads</h2>
-            <div id="frameLoads"></div>
-            <button onclick="addFrameLoad()">Add Load</button>
-        </div>
-        <div class="section">
-            <button onclick="solveFrame()">Solve</button>
-            <select id="frameDiagSelect" onchange="drawFrame(frameRes,frameDiags)">
-                <option value="moment">Bending moment</option>
-                <option value="shear">Shear force</option>
-                <option value="normal">Normal force</option>
-            </select>
-            <canvas id="frameCanvas" width="600" height="400" style="border:1px solid #ccc;"></canvas>
+        <div id="frameLayout">
+            <div id="frameControls">
+                <div class="section">
+                    <h2>Beams</h2>
+                    <div id="frameBeams"></div>
+                    <button onclick="addFrameBeam()">Add Beam</button>
+                </div>
+                <div class="section">
+                    <h2>Supports</h2>
+                    <div id="frameSupports"></div>
+                    <button onclick="addFrameSupport()">Add Support</button>
+                </div>
+                <div class="section">
+                    <h2>Point Loads</h2>
+                    <div id="frameLoads"></div>
+                    <button onclick="addFrameLoad()">Add Load</button>
+                </div>
+                <div class="section">
+                    <button onclick="solveFrame()">Solve</button>
+                    <select id="frameDiagSelect" onchange="drawFrame(frameRes,frameDiags)">
+                        <option value="moment">Bending moment</option>
+                        <option value="shear">Shear force</option>
+                        <option value="normal">Normal force</option>
+                    </select>
+                </div>
+            </div>
+            <div id="frameDiagram" class="section">
+                <canvas id="frameCanvas" width="600" height="500" style="border:1px solid #ccc; width:100%; height:100%;"></canvas>
+            </div>
         </div>
     </div> <!-- end frameTab -->
 
@@ -1566,6 +1576,8 @@ function solveFrame(){
 
 function drawFrame(res,diags){
     const canvas=document.getElementById('frameCanvas');
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
     if(!framePaper){
         framePaper=new paper.PaperScope();
         framePaper.setup(canvas);
@@ -1581,9 +1593,11 @@ function drawFrame(res,diags){
     const pad=40;
     const innerW=canvas.width-2*pad;
     const innerH=canvas.height-2*pad;
-    const scale=Math.min(innerW/(maxX-minX||1), innerH/(maxY-minY||1));
-    const offsetX=pad+(innerW-(maxX-minX)*scale)/2;
-    const offsetY=pad+(innerH-(maxY-minY)*scale)/2;
+    const width=maxX-minX || 1;
+    const height=maxY-minY || 1;
+    const scale=Math.min(innerW/width, innerH/height);
+    const offsetX=pad+(innerW-width*scale)/2;
+    const offsetY=pad+(innerH-height*scale)/2;
     const mx=x=>offsetX+(x-minX)*scale;
     const my=y=>canvas.height-(offsetY+(y-minY)*scale);
     const toPoint=(x,y)=>new framePaper.Point(mx(x),my(y));
