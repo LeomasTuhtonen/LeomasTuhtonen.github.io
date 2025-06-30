@@ -1579,10 +1579,13 @@ function drawFrame(res,diags){
     const minX=Math.min(...xs), maxX=Math.max(...xs);
     const minY=Math.min(...ys), maxY=Math.max(...ys);
     const pad=40;
-    const sx=(canvas.width-2*pad)/(maxX-minX||1);
-    const sy=(canvas.height-2*pad)/(maxY-minY||1);
-    const mx=x=>pad+(x-minX)*sx;
-    const my=y=>canvas.height-(pad+(y-minY)*sy);
+    const innerW=canvas.width-2*pad;
+    const innerH=canvas.height-2*pad;
+    const scale=Math.min(innerW/(maxX-minX||1), innerH/(maxY-minY||1));
+    const offsetX=pad+(innerW-(maxX-minX)*scale)/2;
+    const offsetY=pad+(innerH-(maxY-minY)*scale)/2;
+    const mx=x=>offsetX+(x-minX)*scale;
+    const my=y=>canvas.height-(offsetY+(y-minY)*scale);
     const toPoint=(x,y)=>new framePaper.Point(mx(x),my(y));
 
     frameState.beams.forEach(b=>{
@@ -1597,13 +1600,13 @@ function drawFrame(res,diags){
     });
 
     if(res){
-        const scale=40;
+        const dispScale=40;
         frameState.beams.forEach((b,i)=>{
             const n1=frameState.nodes[b.n1];
             const n2=frameState.nodes[b.n2];
             const d1={x:res.displacements[3*b.n1],y:res.displacements[3*b.n1+1]};
             const d2={x:res.displacements[3*b.n2],y:res.displacements[3*b.n2+1]};
-            new framePaper.Path.Line({from:toPoint(n1.x+d1.x*scale,n1.y+d1.y*scale), to:toPoint(n2.x+d2.x*scale,n2.y+d2.y*scale), strokeColor:'blue'});
+            new framePaper.Path.Line({from:toPoint(n1.x+d1.x*dispScale,n1.y+d1.y*dispScale), to:toPoint(n2.x+d2.x*dispScale,n2.y+d2.y*dispScale), strokeColor:'blue'});
         });
 
         const type=document.getElementById('frameDiagSelect').value;
