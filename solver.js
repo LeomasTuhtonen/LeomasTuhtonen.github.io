@@ -54,6 +54,16 @@ function multiplyMatrixVector(A,x){
     return r;
 }
 
+function transpose(M){
+    const r=[]; for(let i=0;i<M[0].length;i++){r[i]=[]; for(let j=0;j<M.length;j++) r[i][j]=M[j][i];}
+    return r;
+}
+
+function multiplyMatrix(A,B){
+    const r=[]; for(let i=0;i<A.length;i++){r[i]=[]; for(let j=0;j<B[0].length;j++){let sum=0; for(let k=0;k<B.length;k++) sum+=A[i][k]*B[k][j]; r[i][j]=sum;}}
+    return r;
+}
+
 let crossSectionMap = {};
 if (typeof require !== 'undefined' && typeof window === 'undefined') {
     try {
@@ -359,13 +369,111 @@ function computeDiagrams(state,nodes,reactions){
 }
 
 
+
+function frameElementStiffness(E,A,I,L){
+    const a=E*A/L;
+    const b=12*E*I/Math.pow(L,3);
+    const c=6*E*I/Math.pow(L,2);
+    const d=4*E*I/L;
+    const e=2*E*I/L;
+    return [
+        [ a, 0, 0, -a, 0, 0],
+        [ 0, b, c, 0,-b, c],
+        [ 0, c, d, 0,-c, e],
+        [-a, 0, 0,  a, 0, 0],
+        [ 0,-b,-c,0, b,-c],
+        [ 0, c, e, 0,-c, d]
+    ];
+}
+
+function computeFrameResults(frame){
+    const n=frame.nodes.length; if(n===0) return null;
+    const dof=3*n;
+    const K=Array.from({length:dof},()=>new Array(dof).fill(0));
+    const F=new Array(dof).fill(0);
+    frame.beams.forEach(el=>{
+        const n1=el.n1,n2=el.n2;
+        const p1=frame.nodes[n1], p2=frame.nodes[n2];
+        const dx=p2.x-p1.x, dy=p2.y-p1.y;
+        const L=Math.hypot(dx,dy);
+        const c=dx/L, s=dy/L;
+        const E=el.E||frame.E||210e9;
+        const I=el.I||frame.I||1e-6;
+        const A=el.A||frame.A||0.001;
+        const kLocal=frameElementStiffness(E,A,I,L);
+        const T=[
+            [ c, s,0, 0,0,0],
+            [-s, c,0, 0,0,0],
+            [ 0,0,1, 0,0,0],
+            [ 0,0,0, c,s,0],
+            [ 0,0,0,-s,c,0],
+            [ 0,0,0, 0,0,1]
+        ];
+        const kG=multiplyMatrix(transpose(T),multiplyMatrix(kLocal,T));
+        const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
+        for(let i=0;i<6;i++) for(let j=0;j<6;j++) K[dofs[i]][dofs[j]]+=kG[i][j];
+    });
+    frame.loads.forEach(l=>{
+        if(l.Px) F[3*l.node]+=l.Px;
+        if(l.Py) F[3*l.node+1]+=l.Py;
+        if(l.Mz) F[3*l.node+2]+=l.Mz;
+    });
+    const fixed=[];
+    frame.supports.forEach(s=>{
+        if(s.fixX) fixed.push(3*s.node);
+        if(s.fixY) fixed.push(3*s.node+1);
+        if(s.fixRot) fixed.push(3*s.node+2);
+    });
+    const {Kmod,Fmod}=applyBC(K,F,fixed);
+    const U=gaussSolve(Kmod,Fmod);
+    const full=new Array(dof).fill(0); let c=0;
+    for(let i=0;i<dof;i++){if(!fixed.includes(i)) full[i]=U[c++];}
+    return {displacements:full};
+}
+
+function computeFrameDiagrams(frame,res){
+    const diags=[];
+    frame.beams.forEach(el=>{
+        const n1=el.n1,n2=el.n2;
+        const p1=frame.nodes[n1], p2=frame.nodes[n2];
+        const dx=p2.x-p1.x, dy=p2.y-p1.y;
+        const L=Math.hypot(dx,dy);
+        const c=dx/L, s=dy/L;
+        const E=el.E||frame.E||210e9; const I=el.I||frame.I||1e-6; const A=el.A||frame.A||0.001;
+        const kLocal=frameElementStiffness(E,A,I,L);
+        const T=[
+            [ c, s,0, 0,0,0],
+            [-s, c,0, 0,0,0],
+            [ 0,0,1, 0,0,0],
+            [ 0,0,0, c,s,0],
+            [ 0,0,0,-s,c,0],
+            [ 0,0,0, 0,0,1]
+        ];
+        const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
+        const dGlobal=dofs.map(i=>res.displacements[i]);
+        const dLocal=multiplyMatrixVector(T,dGlobal);
+        const fLocal=multiplyMatrixVector(kLocal,dLocal);
+        const N1=-fLocal[0], N2=-fLocal[3];
+        const V1=fLocal[1], V2=-fLocal[4];
+        const M1=fLocal[2], M2=-fLocal[5];
+        diags.push({
+            shear:[{x:0,y:V1},{x:L,y:V2}],
+            moment:[{x:0,y:M1},{x:L,y:M2}],
+            normal:[{x:0,y:N1},{x:L,y:N2}]
+        });
+    });
+    return diags;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { computeResults, computeDiagrams, setCrossSections, getSelfWeightLineLoads, getCrossSection, computeSectionDesign, computeInertia, computeWeakAxisInertia };
+    module.exports = { computeResults, computeDiagrams, computeFrameResults, computeFrameDiagrams, setCrossSections, getSelfWeightLineLoads, getCrossSection, computeSectionDesign, computeInertia, computeWeakAxisInertia };
 }
 
 if (typeof window !== 'undefined') {
     window.computeResults = computeResults;
     window.computeDiagrams = computeDiagrams;
+    window.computeFrameResults = computeFrameResults;
+    window.computeFrameDiagrams = computeFrameDiagrams;
     window.setCrossSections = setCrossSections;
     window.getSelfWeightLineLoads = (spans,name)=>getSelfWeightLineLoads(spans,name);
     window.computeSectionDesign = computeSectionDesign;

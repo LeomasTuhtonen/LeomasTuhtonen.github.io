@@ -38,6 +38,7 @@
     <div id="tabs">
         <button data-tab="analysis" class="active" onclick="showTab('analysis')">Analysis</button>
         <button data-tab="design" onclick="showTab('design')">Design</button>
+        <button data-tab="frame" onclick="showTab('frame')">Frame</button>
     </div>
     <div id="analysisTab" class="tabcontent" style="display:block;">
     <div id="container">
@@ -265,8 +266,38 @@
     </div>
     </div> <!-- end designTab -->
 
+    <div id="frameTab" class="tabcontent">
+        <div class="section">
+            <canvas id="frameCanvas" width="600" height="400" style="border:1px solid #ccc;"></canvas>
+            <div style="margin-top:10px;">
+                <button onclick="setFrameTool('beam')">Beam</button>
+                <button onclick="setFrameTool('support')">Support</button>
+                <button onclick="setFrameTool('load')">Load</button>
+                <button onclick="deleteFrameSelected()">Delete</button>
+                <button onclick="solveFrame()">Solve</button>
+            </div>
+        </div>
+        <div class="section full-width">
+            <h2>Deflection</h2>
+            <canvas id="frameDeflectionChart"></canvas>
+        </div>
+        <div class="section full-width">
+            <h2>Bending Moment</h2>
+            <canvas id="frameMomentChart"></canvas>
+        </div>
+        <div class="section full-width">
+            <h2>Shear Force</h2>
+            <canvas id="frameShearChart"></canvas>
+        </div>
+        <div class="section full-width">
+            <h2>Normal Force</h2>
+            <canvas id="frameNormalChart"></canvas>
+        </div>
+    </div> <!-- end frameTab -->
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/paper@0.12.15/dist/paper-full.min.js"></script>
     <script src="./steel_cross_sections_data.js"></script>
     <script src="./timber_cross_sections_data.js"></script>
     <script src="./solver.js"></script>
@@ -1382,6 +1413,7 @@ function updateDesignProps(name){
 function showTab(name){
     document.getElementById('analysisTab').style.display=name==='analysis'?'block':'none';
     document.getElementById('designTab').style.display=name==='design'?'block':'none';
+    document.getElementById('frameTab').style.display=name==='frame'?'block':'none';
     document.querySelectorAll('#tabs button').forEach(btn=>{
         btn.classList.toggle('active', btn.dataset.tab===name);
     });
@@ -1396,6 +1428,104 @@ addLineLoad(5000,0,10);
 addCombination('Comb1','SW:1.35,LC1:1.50');
 addCombination('Comb2','SW:0.90,LC1:1.50');
 solveSelected();
+
+// Frame tab logic
+const frameState={nodes:[],beams:[],loads:[],supports:[]};
+let frameTool='beam';
+let frameTemp=null,frameTempNode=null,frameSelected=null;
+
+function initFrame(){
+    if(!window.paper) return;
+    paper.setup('frameCanvas');
+    const tool=new paper.Tool();
+    tool.onMouseDown=e=>{
+        const hit=paper.project.hitTest(e.point,{segments:true,stroke:true,fill:true});
+        if(hit && hit.item){
+            if(frameSelected) frameSelected.selected=false;
+            frameSelected=hit.item;
+            frameSelected.selected=true;
+            return;
+        }
+        if(frameTool==='beam'){
+            if(!frameTemp){
+                frameTempNode=addFrameNode(e.point);
+                frameTemp=e.point;
+                new paper.Path.Circle(e.point,3).fillColor='blue';
+            } else {
+                const n1=frameTempNode;
+                const n2=addFrameNode(e.point);
+                const path=new paper.Path.Line(frameTemp,e.point);
+                path.strokeColor='black';
+                path.data={type:'beam',n1,n2};
+                frameState.beams.push({n1,n2,path});
+                frameTemp=null; frameTempNode=null;
+            }
+        } else if(frameTool==='support'){
+            const n=addFrameNode(e.point);
+            const c=new paper.Path.Circle(e.point,5);
+            c.fillColor='green';
+            c.data={type:'support',node:n,fixX:true,fixY:true,fixRot:true};
+            frameState.supports.push({node:n,fixX:true,fixY:true,fixRot:true,path:c});
+        } else if(frameTool==='load'){
+            const n=addFrameNode(e.point);
+            const arr=new paper.Path.Line(e.point,e.point.add([0,-20]));
+            arr.strokeColor='red';
+            arr.data={type:'load',node:n,Py:-1000};
+            frameState.loads.push({node:n,Py:-1000,path:arr});
+        }
+    };
+}
+
+function addFrameNode(p){
+    const idx=frameState.nodes.findIndex(n=>n.x===p.x&&n.y===p.y);
+    if(idx>-1) return idx;
+    frameState.nodes.push({x:p.x,y:p.y});
+    return frameState.nodes.length-1;
+}
+
+function setFrameTool(t){frameTool=t;}
+
+function deleteFrameSelected(){
+    if(!frameSelected) return;
+    const d=frameSelected.data;
+    if(d.type==='beam'){frameState.beams=frameState.beams.filter(b=>b.path!==frameSelected);} 
+    else if(d.type==='support'){frameState.supports=frameState.supports.filter(s=>s.path!==frameSelected);} 
+    else if(d.type==='load'){frameState.loads=frameState.loads.filter(l=>l.path!==frameSelected);} 
+    frameSelected.remove(); frameSelected=null;
+}
+
+function solveFrame(){
+    const res=computeFrameResults(frameState);
+    if(!res) return;
+    const diags=computeFrameDiagrams(frameState,res);
+    updateFrameCharts(res,diags);
+}
+
+function updateFrameCharts(res,diags){
+    const xs=frameState.nodes.map((n,i)=>i);
+    const def=frameState.nodes.map((_,i)=>-res.displacements[3*i+1]*1000);
+    createFrameChart('frameDeflectionChart',xs,def,'Deflection','blue');
+
+    const makeDatasets=(arr,scale)=>arr.map((seg,i)=>({label:'B'+i,data:seg.map(p=>({x:p.x,y:p.y/scale})),fill:false,showLine:true,borderColor:'blue'}));
+    const shearDS=makeDatasets(diags.map(d=>d.shear),1000);
+    const momentDS=makeDatasets(diags.map(d=>d.moment),1000);
+    const normalDS=makeDatasets(diags.map(d=>d.normal),1000);
+    createFrameChart('frameShearChart',null,null,'Shear',null,shearDS);
+    createFrameChart('frameMomentChart',null,null,'Moment',null,momentDS);
+    createFrameChart('frameNormalChart',null,null,'Normal',null,normalDS);
+}
+
+function createFrameChart(id,x,y,label,color,datasets){
+    const ctx=document.getElementById(id).getContext('2d');
+    if(window[id+'Obj']){window[id+'Obj'].destroy();}
+    if(!datasets){
+        const data=x.map((v,i)=>({x:v,y:y[i]}));
+        datasets=[{label:label,data,borderColor:color,fill:false,showLine:true}];
+    }
+    window[id+'Obj']=new Chart(ctx,{type:'line',data:{datasets},options:{scales:{x:{type:'linear'},y:{title:{display:true,text:label}}}}});
+}
+
+window.addEventListener('load',initFrame);
     </script>
 </body>
 </html>
