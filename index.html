@@ -40,6 +40,7 @@
         #frameControls { flex:1 1 250px; max-width:350px; }
         #frameDiagram { flex:2 1 400px; min-height:520px; }
         #frameDiagram canvas { width:100%; height:100%; max-height:600px; }
+        #frameToolbar { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
     </style>
 </head>
 <body>
@@ -293,7 +294,9 @@
                     <div id="frameLoads"></div>
                     <button onclick="addFrameLoad()">Add Load</button>
                 </div>
-                <div class="section">
+            </div>
+            <div id="frameDiagram" class="section">
+                <div id="frameToolbar">
                     <button onclick="solveFrame()">Solve</button>
                     <select id="frameDiagSelect" onchange="drawFrame(frameRes,frameDiags)">
                         <option value="moment">Bending moment</option>
@@ -301,8 +304,6 @@
                         <option value="normal">Normal force</option>
                     </select>
                 </div>
-            </div>
-            <div id="frameDiagram" class="section">
                 <canvas id="frameCanvas" width="600" height="500" style="border:1px solid #ccc; width:100%; height:100%;"></canvas>
             </div>
         </div>
@@ -1605,7 +1606,18 @@ function drawFrame(res,diags){
     frameState.beams.forEach(b=>{
         const n1=frameState.nodes[b.n1];
         const n2=frameState.nodes[b.n2];
-        new framePaper.Path.Line({from:toPoint(n1.x,n1.y), to:toPoint(n2.x,n2.y), strokeColor:'gray'});
+        const p1=toPoint(n1.x,n1.y);
+        const p2=toPoint(n2.x,n2.y);
+        const dir=p2.subtract(p1).normalize();
+        const perp=dir.rotate(90);
+        const h=(crossSections[b.section]?.h_mm||0)/1000;
+        const half=h*scale/2;
+        const path=new framePaper.Path({strokeColor:'gray', fillColor:'#eee'});
+        path.add(p1.add(perp.multiply(-half)));
+        path.add(p1.add(perp.multiply(half)));
+        path.add(p2.add(perp.multiply(half)));
+        path.add(p2.add(perp.multiply(-half)));
+        path.closed=true;
     });
 
     frameState.nodes.forEach((n,i)=>{
@@ -1632,15 +1644,23 @@ function drawFrame(res,diags){
             const n2=frameState.nodes[b.n2];
             const p1=toPoint(n1.x,n1.y);
             const p2=toPoint(n2.x,n2.y);
-            const perp=p2.subtract(p1).normalize().rotate(90);
+            const dir=p2.subtract(p1).normalize();
+            const perp=dir.rotate(90);
             const v1=diags[i][type][0].y;
             const v2=diags[i][type][1].y;
-            const path=new framePaper.Path({strokeColor:'red'});
+            const path=new framePaper.Path({strokeColor:'red', fillColor:'rgba(255,0,0,0.3)'});
             path.add(p1);
-            path.add(p1.add(perp.multiply(v1*diagScale)));
-            path.add(p2.add(perp.multiply(v2*diagScale)));
+            if(type==='normal'){
+                path.add(p1.add(dir.multiply(v1*diagScale)));
+                path.add(p2.add(dir.multiply(v2*diagScale)));
+            }else{
+                path.add(p1.add(perp.multiply(v1*diagScale)));
+                path.add(p2.add(perp.multiply(v2*diagScale)));
+            }
             path.add(p2);
-            const mid=p1.add(p2).divide(2).add(perp.multiply(((v1+v2)/2)*diagScale+10));
+            path.closed=true;
+            const labelDir=type==='normal'?perp:perp;
+            const mid=p1.add(p2).divide(2).add(labelDir.multiply(((v1+v2)/2)*diagScale+10));
             new framePaper.PointText({point:mid, content:((v1+v2)/2).toFixed(1), fontSize:10});
         });
     }
