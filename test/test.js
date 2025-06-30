@@ -1,5 +1,5 @@
 const assert = require('assert');
-const {computeResults, computeSectionDesign} = require('../solver');
+const {computeResults, computeSectionDesign, computeFrameResults} = require('../solver');
 
 function close(actual, expected, tol, msg){
   if(Math.abs(actual-expected) > tol) throw new Error(msg+` expected ${expected} got ${actual}`);
@@ -53,4 +53,16 @@ function close(actual, expected, tol, msg){
   assert(design.chiLT > 0 && design.chiLT <= 1, 'chiLT invalid');
   assert(design.Lb === 3, 'Lb not stored');
   assert(design.E > 0 && design.G > 0, 'moduli not stored');
+})();
+
+// Simple frame test
+(function testSimpleFrame(){
+  const frame = {
+    nodes:[{x:0,y:0},{x:0,y:3},{x:4,y:3},{x:4,y:0}],
+    beams:[{n1:0,n2:1},{n1:1,n2:2},{n1:2,n2:3}],
+    supports:[{node:0,fixX:true,fixY:true,fixRot:true},{node:3,fixX:true,fixY:true,fixRot:true}],
+    loads:[{node:1,Py:-1000}]
+  };
+  const res = computeFrameResults(frame);
+  assert(res.displacements.length === frame.nodes.length*3, 'frame result size');
 })();
