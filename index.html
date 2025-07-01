@@ -297,7 +297,8 @@
             </div>
             <div id="frameDiagram" class="section">
                 <div id="frameToolbar">
-                    <button onclick="solveFrame()">Solve</button>
+                    <label>Deflection scale</label>
+                    <input type="range" id="frameDefScale" min="0" max="10" step="0.1" value="1" oninput="drawFrame(frameRes,frameDiags)">
                     <select id="frameDiagSelect" onchange="drawFrame(frameRes,frameDiags)">
                         <option value="moment">Bending moment</option>
                         <option value="shear">Shear force</option>
@@ -1456,6 +1457,7 @@ function addFrameBeam(){
     rebuildFrameBeams();
     rebuildNodes();
     rebuildNodeOptions();
+    solveFrame();
 }
 
 function removeFrameBeam(i){
@@ -1463,6 +1465,7 @@ function removeFrameBeam(i){
     rebuildFrameBeams();
     rebuildNodes();
     rebuildNodeOptions();
+    solveFrame();
 }
 
 function rebuildFrameBeams(){
@@ -1473,24 +1476,27 @@ function rebuildFrameBeams(){
         row.className='input-row frame-row';
         const opts=Object.keys(crossSections).sort().map(n=>`<option value="${n}"${n===b.section?' selected':''}>${n}</option>`).join('');
         row.innerHTML=`<label>Beam ${i+1}</label>`+
-            `<div class='cell'>x1<input type='number' value='${b.x1}' step='0.1' onchange='frameState.beams[${i}].x1=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions();'/></div>`+
-            `<div class='cell'>y1<input type='number' value='${b.y1}' step='0.1' onchange='frameState.beams[${i}].y1=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions();'/></div>`+
-            `<div class='cell'>x2<input type='number' value='${b.x2}' step='0.1' onchange='frameState.beams[${i}].x2=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions();'/></div>`+
-            `<div class='cell'>y2<input type='number' value='${b.y2}' step='0.1' onchange='frameState.beams[${i}].y2=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions();'/></div>`+
-            `<div class='cell'>section<select onchange='frameState.beams[${i}].section=this.value'>${opts}</select></div>`+
+            `<div class='cell'>x1<input type='number' value='${b.x1}' step='0.1' onchange='frameState.beams[${i}].x1=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></div>`+
+            `<div class='cell'>y1<input type='number' value='${b.y1}' step='0.1' onchange='frameState.beams[${i}].y1=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></div>`+
+            `<div class='cell'>x2<input type='number' value='${b.x2}' step='0.1' onchange='frameState.beams[${i}].x2=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></div>`+
+            `<div class='cell'>y2<input type='number' value='${b.y2}' step='0.1' onchange='frameState.beams[${i}].y2=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></div>`+
+            `<div class='cell'>section<select onchange='frameState.beams[${i}].section=this.value; solveFrame();'>${opts}</select></div>`+
             `<button class='remove-btn' onclick='removeFrameBeam(${i})'>Remove</button>`;
         c.appendChild(row);
     });
+    solveFrame();
 }
 
 function addFrameSupport(){
     frameState.supports.push({node:0,fixX:true,fixY:true,fixRot:true});
     rebuildFrameSupports();
+    solveFrame();
 }
 
 function removeFrameSupport(i){
     frameState.supports.splice(i,1);
     rebuildFrameSupports();
+    solveFrame();
 }
 
 function rebuildFrameSupports(){
@@ -1501,23 +1507,26 @@ function rebuildFrameSupports(){
         const row=document.createElement('div');
         row.className='input-row frame-row';
         row.innerHTML=`<label>Support ${i+1}</label>`+
-            `<div class='cell'>node<select class='node-select' onchange='frameState.supports[${i}].node=parseInt(this.value)'>${opts}</select></div>`+
-            `<div class='cell'>Fx<input type='checkbox' ${s.fixX?'checked':''} onchange='frameState.supports[${i}].fixX=this.checked'/></div>`+
-            `<div class='cell'>Fy<input type='checkbox' ${s.fixY?'checked':''} onchange='frameState.supports[${i}].fixY=this.checked'/></div>`+
-            `<div class='cell'>Mz<input type='checkbox' ${s.fixRot?'checked':''} onchange='frameState.supports[${i}].fixRot=this.checked'/></div>`+
+            `<div class='cell'>node<select class='node-select' onchange='frameState.supports[${i}].node=parseInt(this.value); solveFrame();'>${opts}</select></div>`+
+            `<div class='cell'>Fx<input type='checkbox' ${s.fixX?'checked':''} onchange='frameState.supports[${i}].fixX=this.checked; solveFrame();'/></div>`+
+            `<div class='cell'>Fy<input type='checkbox' ${s.fixY?'checked':''} onchange='frameState.supports[${i}].fixY=this.checked; solveFrame();'/></div>`+
+            `<div class='cell'>Mz<input type='checkbox' ${s.fixRot?'checked':''} onchange='frameState.supports[${i}].fixRot=this.checked; solveFrame();'/></div>`+
             `<button class='remove-btn' onclick='removeFrameSupport(${i})'>Remove</button>`;
         c.appendChild(row);
     });
+    solveFrame();
 }
 
 function addFrameLoad(){
     frameState.loads.push({node:0,Fx:0,Fz:-1000,My:0});
     rebuildFrameLoads();
+    solveFrame();
 }
 
 function removeFrameLoad(i){
     frameState.loads.splice(i,1);
     rebuildFrameLoads();
+    solveFrame();
 }
 
 function rebuildFrameLoads(){
@@ -1528,13 +1537,14 @@ function rebuildFrameLoads(){
         const row=document.createElement('div');
         row.className='input-row frame-row';
         row.innerHTML=`<label>Load ${i+1}</label>`+
-            `<div class='cell'>node<select class='node-select' onchange='frameState.loads[${i}].node=parseInt(this.value)'>${opts}</select></div>`+
-            `<div class='cell'>Fx<input type='number' value='${l.Fx}' step='1' onchange='frameState.loads[${i}].Fx=parseFloat(this.value)'/></div>`+
-            `<div class='cell'>Fz<input type='number' value='${l.Fz}' step='1' onchange='frameState.loads[${i}].Fz=parseFloat(this.value)'/></div>`+
-            `<div class='cell'>My<input type='number' value='${l.My}' step='1' onchange='frameState.loads[${i}].My=parseFloat(this.value)'/></div>`+
+            `<div class='cell'>node<select class='node-select' onchange='frameState.loads[${i}].node=parseInt(this.value); solveFrame();'>${opts}</select></div>`+
+            `<div class='cell'>Fx<input type='number' value='${l.Fx}' step='1' onchange='frameState.loads[${i}].Fx=parseFloat(this.value); solveFrame();'/></div>`+
+            `<div class='cell'>Fz<input type='number' value='${l.Fz}' step='1' onchange='frameState.loads[${i}].Fz=parseFloat(this.value); solveFrame();'/></div>`+
+            `<div class='cell'>My<input type='number' value='${l.My}' step='1' onchange='frameState.loads[${i}].My=parseFloat(this.value); solveFrame();'/></div>`+
             `<button class='remove-btn' onclick='removeFrameLoad(${i})'>Remove</button>`;
         c.appendChild(row);
     });
+    solveFrame();
 }
 
 function rebuildNodes(){
@@ -1626,8 +1636,42 @@ function drawFrame(res,diags){
         new framePaper.PointText({point:toPoint(n.x,n.y).add([4,-4]), content:String(i), fillColor:'black', fontSize:12});
     });
 
+    if(frameState.loads.length){
+        const maxF=Math.max(...frameState.loads.map(l=>Math.hypot(l.Fx||0,l.Fz||0)),0);
+        const forceScale=30/((maxF||1)*scale);
+        const momentScale=20;
+        frameState.loads.forEach(l=>{
+            const node=frameState.nodes[l.node];
+            const p=toPoint(node.x,node.y);
+            const fx=l.Fx||0, fz=l.Fz||0;
+            const mag=Math.hypot(fx,fz);
+            if(mag>0){
+                const end=toPoint(node.x+fx*forceScale,node.y+fz*forceScale);
+                const dir=end.subtract(p).normalize();
+                new framePaper.Path({segments:[p,end], strokeColor:'green'});
+                const left=end.subtract(dir.multiply(6)).add(dir.rotate(90).multiply(4));
+                const right=end.subtract(dir.multiply(6)).add(dir.rotate(-90).multiply(4));
+                new framePaper.Path({segments:[left,end,right], strokeColor:'green', fillColor:'green'});
+            }
+            if(l.My){
+                const sign=l.My>0?1:-1;
+                const r=momentScale;
+                const start=p.add([r,0]);
+                const through=p.add([0,-sign*r]);
+                const endP=p.add([-r,0]);
+                const arc=new framePaper.Path.Arc(start, through, endP);
+                arc.strokeColor='purple';
+                const dir=endP.subtract(through).normalize();
+                const a1=endP.add(dir.rotate(90*sign).multiply(6));
+                const a2=endP.add(dir.rotate(-90*sign).multiply(6));
+                new framePaper.Path({segments:[a1,endP,a2], strokeColor:'purple', fillColor:'purple'});
+            }
+        });
+    }
+
     if(res){
-        const dispScale=40;
+        const scaleInput=document.getElementById('frameDefScale');
+        const dispScale=40*(scaleInput?parseFloat(scaleInput.value||'1'):1);
         frameState.beams.forEach((b,i)=>{
             const n1=frameState.nodes[b.n1];
             const n2=frameState.nodes[b.n2];
@@ -1672,6 +1716,7 @@ window.addEventListener('load',()=>{
     rebuildFrameBeams();
     rebuildFrameSupports();
     rebuildFrameLoads();
+    solveFrame();
 });
     </script>
 </body>
