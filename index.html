@@ -38,8 +38,8 @@
         .frame-row .cell select { width:70px; }
         #frameLayout { display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; }
         #frameControls { flex:1 1 250px; max-width:350px; }
-        #frameDiagram { flex:2 1 400px; min-height:520px; }
-        #frameDiagram canvas { width:100%; height:100%; max-height:600px; }
+        #frameDiagram { flex:2 1 400px; min-height:520px; max-width:600px; }
+        #frameDiagram canvas { width:100%; height:100%; max-width:600px; max-height:600px; }
         #frameToolbar { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
     </style>
 </head>
@@ -307,7 +307,7 @@
                         <option value="normal">Normal force</option>
                     </select>
                 </div>
-                <canvas id="frameCanvas" width="600" height="500" style="border:1px solid #ccc; width:100%; height:100%;"></canvas>
+                <canvas id="frameCanvas" width="600" height="600" style="border:1px solid #ccc; width:100%; height:100%;"></canvas>
             </div>
         </div>
     </div> <!-- end frameTab -->
@@ -1601,13 +1601,12 @@ function solveFrame(){
 }
 
 function drawFrame(res,diags){
-    const canvas=document.getElementById('frameCanvas');
-    const cW = canvas.clientWidth;
-    const cH = canvas.clientHeight;
-    if(cW && cH){
-        canvas.width = cW;
-        canvas.height = cH;
-    }
+    const canvas = document.getElementById('frameCanvas');
+    const maxSize = 600;
+    const cW = Math.min(canvas.clientWidth || maxSize, maxSize);
+    const cH = Math.min(canvas.clientHeight || maxSize, maxSize);
+    canvas.width = cW;
+    canvas.height = cH;
     if(!framePaper){
         framePaper=new paper.PaperScope();
         framePaper.setup(canvas);
@@ -1627,17 +1626,15 @@ function drawFrame(res,diags){
     const ys=frameState.nodes.map(n=>n.y);
     const minX=Math.min(...xs), maxX=Math.max(...xs);
     const minY=Math.min(...ys), maxY=Math.max(...ys);
-    const pad=40;
-    const innerW=canvas.width-2*pad;
-    const innerH=canvas.height-2*pad;
-    const width=maxX-minX || 1;
-    const height=maxY-minY || 1;
-    const scale=Math.min(innerW/width, innerH/height);
-    const offsetX=pad+(innerW-width*scale)/2;
-    const offsetY=pad+(innerH-height*scale)/2;
-    const mx=x=>offsetX+(x-minX)*scale;
-    const my=y=>canvas.height-(offsetY+(y-minY)*scale);
-    const toPoint=(x,y)=>new framePaper.Point(mx(x),my(y));
+    const pad = 40;
+    const innerW = canvas.width - 2 * pad;
+    const innerH = canvas.height - 2 * pad;
+    const width = maxX - minX || 1;
+    const height = maxY - minY || 1;
+    const scale = Math.min(innerW / width, innerH / height);
+    const mx = x => pad + (x - minX) * scale;
+    const my = y => canvas.height - pad - (y - minY) * scale;
+    const toPoint = (x, y) => new framePaper.Point(mx(x), my(y));
 
     frameState.beams.forEach(b=>{
         const n1=frameState.nodes[b.n1];
