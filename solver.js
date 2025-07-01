@@ -431,7 +431,7 @@ function computeFrameResults(frame){
     return {displacements:full};
 }
 
-function computeFrameDiagrams(frame,res){
+function computeFrameDiagrams(frame,res,divisions=1){
     const diags=[];
     frame.beams.forEach(el=>{
         const n1=el.n1,n2=el.n2;
@@ -456,11 +456,14 @@ function computeFrameDiagrams(frame,res){
         const N1=-fLocal[0], N2=-fLocal[3];
         const V1=fLocal[1], V2=-fLocal[4];
         const M1=fLocal[2], M2=-fLocal[5];
-        diags.push({
-            shear:[{x:0,y:V1},{x:L,y:V2}],
-            moment:[{x:0,y:M1},{x:L,y:M2}],
-            normal:[{x:0,y:N1},{x:L,y:N2}]
-        });
+        const shear=[], moment=[], normal=[];
+        for(let j=0;j<=divisions;j++){
+            const t=j/divisions;
+            shear.push({x:t*L,y:V1+(V2-V1)*t});
+            moment.push({x:t*L,y:M1+(M2-M1)*t});
+            normal.push({x:t*L,y:N1+(N2-N1)*t});
+        }
+        diags.push({shear,moment,normal});
     });
     return diags;
 }
