@@ -301,7 +301,7 @@
                     <input type="range" id="frameDefScale" min="0.1" max="10" step="0.1" value="1" oninput="drawFrame(frameRes,frameDiags)">
                     <div id="frameMaxDisp" style="font-size:12px;margin-top:4px;"></div>
                     <label style="margin-left:10px;">Member division</label>
-                    <input type="number" id="frameDiv" value="5" min="1" step="1" onchange="solveFrame()" style="width:60px;">
+                    <input type="number" id="frameDiv" value="10" min="1" step="1" onchange="solveFrame()" style="width:60px;">
                     <select id="frameDiagSelect" onchange="drawFrame(frameRes,frameDiags)">
                         <option value="moment">Bending moment</option>
                         <option value="shear">Shear force</option>
@@ -1637,7 +1637,7 @@ function drawFrame(res,diags){
     const my = y => canvas.height - pad - (y - minY) * scale;
     const toPoint = (x, y) => new framePaper.Point(mx(x), my(y));
 
-    frameState.beams.forEach(b=>{
+    frameState.beams.forEach((b,i)=>{
         const n1=frameState.nodes[b.n1];
         const n2=frameState.nodes[b.n2];
         const p1=toPoint(n1.x,n1.y);
@@ -1652,12 +1652,40 @@ function drawFrame(res,diags){
         path.add(p2.add(perp.multiply(half)));
         path.add(p2.add(perp.multiply(-half)));
         path.closed=true;
+        const mid=p1.add(p2).divide(2);
+        new framePaper.PointText({point:mid.add([0,-10]), content:`Beam ${i+1}`, fillColor:'green', fontSize:12});
     });
 
     frameState.nodes.forEach((n,i)=>{
         new framePaper.Path.Circle({center:toPoint(n.x,n.y), radius:3, fillColor:'black'});
         new framePaper.PointText({point:toPoint(n.x,n.y).add([4,-4]), content:String(i), fillColor:'black', fontSize:12});
     });
+
+    if(frameState.supports.length){
+        const size=8;
+        frameState.supports.forEach(s=>{
+            const node=frameState.nodes[s.node];
+            const p=toPoint(node.x,node.y);
+            if(s.fixX){
+                new framePaper.Path({segments:[p.add([-size,-size/2]), p.add([-size,size/2]), p], fillColor:'orange', strokeColor:'orange'});
+            }
+            if(s.fixY){
+                new framePaper.Path({segments:[p.add([-size/2,size]), p.add([size/2,size]), p], fillColor:'orange', strokeColor:'orange'});
+            }
+            if(s.fixRot){
+                const r=size*0.8;
+                const start=p.add([0,-r]);
+                const through=p.add([r,0]);
+                const endP=p.add([0,r]);
+                const arc=new framePaper.Path.Arc(start,through,endP);
+                arc.strokeColor='orange';
+                const dir=endP.subtract(through).normalize();
+                const a1=endP.add(dir.rotate(135).multiply(3));
+                const a2=endP.add(dir.rotate(-135).multiply(3));
+                new framePaper.Path({segments:[a1,endP,a2], strokeColor:'orange', fillColor:'orange'});
+            }
+        });
+    }
 
     if(frameState.loads.length){
         const maxF=Math.max(...frameState.loads.map(l=>Math.hypot(l.Fx||0,l.Fz||0)),0);
@@ -1669,12 +1697,12 @@ function drawFrame(res,diags){
             const fx=l.Fx||0, fz=l.Fz||0;
             const mag=Math.hypot(fx,fz);
             if(mag>0){
-                const end=toPoint(node.x+fx*forceScale,node.y+fz*forceScale);
-                const dir=end.subtract(p).normalize();
-                new framePaper.Path({segments:[p,end], strokeColor:'green'});
-                const left=end.subtract(dir.multiply(6)).add(dir.rotate(90).multiply(4));
-                const right=end.subtract(dir.multiply(6)).add(dir.rotate(-90).multiply(4));
-                new framePaper.Path({segments:[left,end,right], strokeColor:'green', fillColor:'green'});
+                const start=toPoint(node.x-fx*forceScale,node.y-fz*forceScale);
+                const dir=p.subtract(start).normalize();
+                new framePaper.Path({segments:[start,p], strokeColor:'green'});
+                const left=p.subtract(dir.multiply(6)).add(dir.rotate(90).multiply(4));
+                const right=p.subtract(dir.multiply(6)).add(dir.rotate(-90).multiply(4));
+                new framePaper.Path({segments:[left,p,right], strokeColor:'green', fillColor:'green'});
             }
             if(l.My){
                 const sign=l.My>0?1:-1;
