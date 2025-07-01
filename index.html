@@ -1441,7 +1441,7 @@ function showTab(name){
     }
     if(name==='frame'){
         // redraw frame diagram after tab becomes visible
-        drawFrame(frameRes, frameDiags);
+        requestAnimationFrame(()=>drawFrame(frameRes, frameDiags));
     }
 }
 
@@ -1594,13 +1594,19 @@ function solveFrame(){
     const diags=computeFrameDiagrams(frame,res,div);
     frameRes=res;
     frameDiags=diags;
-    drawFrame(res,diags);
+    if(document.getElementById('frameTab').style.display!=='none'){
+        drawFrame(res,diags);
+    }
 }
 
 function drawFrame(res,diags){
     const canvas=document.getElementById('frameCanvas');
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
+    const cW = canvas.clientWidth;
+    const cH = canvas.clientHeight;
+    if(cW && cH){
+        canvas.width = cW;
+        canvas.height = cH;
+    }
     if(!framePaper){
         framePaper=new paper.PaperScope();
         framePaper.setup(canvas);
