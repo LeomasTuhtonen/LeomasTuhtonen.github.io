@@ -1716,10 +1716,12 @@ function drawFrame(res,diags){
                 const x=t*L;
                 const u=dLocal[0]*(1-t)+dLocal[3]*t;
                 const w=dLocal[1]*(1-3*t*t+2*t*t*t)+dLocal[2]*(x-2*x*x/L+x*x*x/(L*L))+dLocal[4]*(3*t*t-2*t*t*t)+dLocal[5]*(-x*x/L+x*x*x/(L*L));
-                // Do not scale axial displacements to avoid drifting when adjusting the
-                // deflection scale. Only the transverse component is magnified.
-                const gx=n1.x+dx*t - s*w*dispScale;
-                const gy=n1.y+dy*t + c*w*dispScale;
+                // Use local coordinates to keep one end fixed while scaling only
+                // the transverse displacement component.
+                const xLocal=x+u; // axial displacement not scaled
+                const yLocal=w*dispScale; // magnified transverse displacement
+                const gx=n1.x+c*xLocal - s*yLocal;
+                const gy=n1.y+s*xLocal + c*yLocal;
                 path.add(toPoint(gx,gy));
             }
         });
