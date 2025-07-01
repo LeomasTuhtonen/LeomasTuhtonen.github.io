@@ -1228,7 +1228,8 @@ function drawSectionGraphic(cs){
     if (!cs) { return; }
 
     const maxDim = Math.max(cs.b_mm, cs.h_mm);
-    const pad = Math.max(maxDim * 0.1, 20);
+    const basePad = Math.max(maxDim * 0.1, 20);
+    const pad = basePad + 20; // extra room for dimension arrows
     const viewW = cs.b_mm + 2 * pad;
     const viewH = cs.h_mm + 2 * pad;
     svg.setAttribute('viewBox', `0 0 ${viewW} ${viewH}`);
