@@ -453,7 +453,9 @@ function computeFrameDiagrams(frame,res,divisions=1){
         const dGlobal=dofs.map(i=>res.displacements[i]);
         const dLocal=multiplyMatrixVector(T,dGlobal);
         const fLocal=multiplyMatrixVector(kLocal,dLocal);
-        const N1=-fLocal[0], N2=-fLocal[3];
+        // Ensure axial forces have consistent sign at both ends.
+        // Compression is positive when fLocal[0] is negative.
+        const N1=-fLocal[0], N2=fLocal[3];
         const V1=fLocal[1], V2=-fLocal[4];
         const M1=fLocal[2], M2=-fLocal[5];
         const shear=[], moment=[], normal=[];
