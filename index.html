@@ -1604,8 +1604,11 @@ function drawFrame(res,diags){
     if(!framePaper){
         framePaper=new paper.PaperScope();
         framePaper.setup(canvas);
+        framePaper.view.viewSize = new framePaper.Size(canvas.width, canvas.height);
     }else{
         framePaper.project.clear();
+        // ensure the paper view matches the resized canvas
+        framePaper.view.viewSize = new framePaper.Size(canvas.width, canvas.height);
     }
     if(frameState.nodes.length===0){ framePaper.view.update(); return; }
 
