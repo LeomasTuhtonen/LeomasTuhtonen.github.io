@@ -1439,6 +1439,10 @@ function showTab(name){
         const sel=document.getElementById('designSectionSelect');
         if(sel) updateDesignProps(sel.value);
     }
+    if(name==='frame'){
+        // redraw frame diagram after tab becomes visible
+        drawFrame(frameRes, frameDiags);
+    }
 }
 
 addSpan(10);
