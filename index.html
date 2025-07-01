@@ -1464,7 +1464,9 @@ function mulMV(A,x){
 
 function addFrameBeam(){
     const first=Object.keys(crossSections)[0]||'';
-    frameState.beams.push({x1:0,y1:0,x2:1,y2:0,section:first});
+    const idx=frameState.beams.length+1;
+    frameState.beams.push({name:`B${idx}`,x1:0,y1:0,x2:1,y2:0,section:first,
+        kx1:-1,ky1:-1,cz1:-1,kx2:-1,ky2:-1,cz2:-1,on:true});
     rebuildFrameBeams();
     rebuildNodes();
     rebuildNodeOptions();
@@ -1481,20 +1483,30 @@ function removeFrameBeam(i){
 
 function rebuildFrameBeams(){
     const c=document.getElementById('frameBeams');
-    c.innerHTML='';
+    const optsAll=Object.keys(crossSections).sort();
+    let html=`<table><thead><tr><th>Name</th><th>X1</th><th>Y1</th><th>X2</th><th>Y2</th>`+
+        `<th>Kx1</th><th>Ky1</th><th>Cz1</th><th>Kx2</th><th>Ky2</th><th>Cz2</th><th>Section</th><th>On/Off</th><th></th></tr></thead><tbody>`;
     frameState.beams.forEach((b,i)=>{
-        const row=document.createElement('div');
-        row.className='input-row frame-row';
-        const opts=Object.keys(crossSections).sort().map(n=>`<option value="${n}"${n===b.section?' selected':''}>${n}</option>`).join('');
-        row.innerHTML=`<label>Beam ${i+1}</label>`+
-            `<div class='cell'>x1<input type='number' value='${b.x1}' step='0.1' onchange='frameState.beams[${i}].x1=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></div>`+
-            `<div class='cell'>y1<input type='number' value='${b.y1}' step='0.1' onchange='frameState.beams[${i}].y1=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></div>`+
-            `<div class='cell'>x2<input type='number' value='${b.x2}' step='0.1' onchange='frameState.beams[${i}].x2=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></div>`+
-            `<div class='cell'>y2<input type='number' value='${b.y2}' step='0.1' onchange='frameState.beams[${i}].y2=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></div>`+
-            `<div class='cell'>section<select onchange='frameState.beams[${i}].section=this.value; solveFrame();'>${opts}</select></div>`+
-            `<button class='remove-btn' onclick='removeFrameBeam(${i})'>Remove</button>`;
-        c.appendChild(row);
+        const opts=optsAll.map(n=>`<option value="${n}"${n===b.section?' selected':''}>${n}</option>`).join('');
+        html+=`<tr>`+
+          `<td><input value='${b.name}' onchange='frameState.beams[${i}].name=this.value'/></td>`+
+          `<td><input type='number' value='${b.x1}' step='0.1' onchange='frameState.beams[${i}].x1=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></td>`+
+          `<td><input type='number' value='${b.y1}' step='0.1' onchange='frameState.beams[${i}].y1=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></td>`+
+          `<td><input type='number' value='${b.x2}' step='0.1' onchange='frameState.beams[${i}].x2=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></td>`+
+          `<td><input type='number' value='${b.y2}' step='0.1' onchange='frameState.beams[${i}].y2=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></td>`+
+          `<td><input type='number' value='${b.kx1}' step='0.1' onchange='frameState.beams[${i}].kx1=parseFloat(this.value); solveFrame();'/></td>`+
+          `<td><input type='number' value='${b.ky1}' step='0.1' onchange='frameState.beams[${i}].ky1=parseFloat(this.value); solveFrame();'/></td>`+
+          `<td><input type='number' value='${b.cz1}' step='0.1' onchange='frameState.beams[${i}].cz1=parseFloat(this.value); solveFrame();'/></td>`+
+          `<td><input type='number' value='${b.kx2}' step='0.1' onchange='frameState.beams[${i}].kx2=parseFloat(this.value); solveFrame();'/></td>`+
+          `<td><input type='number' value='${b.ky2}' step='0.1' onchange='frameState.beams[${i}].ky2=parseFloat(this.value); solveFrame();'/></td>`+
+          `<td><input type='number' value='${b.cz2}' step='0.1' onchange='frameState.beams[${i}].cz2=parseFloat(this.value); solveFrame();'/></td>`+
+          `<td><select onchange='frameState.beams[${i}].section=this.value; solveFrame();'>${opts}</select></td>`+
+          `<td><input type='checkbox' ${b.on!==false?'checked':''} onchange='frameState.beams[${i}].on=this.checked; solveFrame();'/></td>`+
+          `<td><button class='remove-btn' onclick='removeFrameBeam(${i})'>Remove</button></td>`+
+        `</tr>`;
     });
+    html+='</tbody></table>';
+    c.innerHTML=html;
     solveFrame();
 }
 
@@ -1581,11 +1593,12 @@ function rebuildNodeOptions(){
 
 function solveFrame(){
     rebuildNodes();
-    const beams=frameState.beams.map(b=>{
+    const beams=frameState.beams.filter(b=>b.on!==false).map(b=>{
         const cs=crossSections[b.section]||{};
         const I=cs.I_y||cs.Iy_m4||cs.I_z||cs.Iz_m4||1e-6;
         const A=cs.A_m2||0.001;
-        return {n1:b.n1,n2:b.n2,E:state.E,I,A};
+        return {n1:b.n1,n2:b.n2,E:state.E,I,A,
+            kx1:b.kx1,ky1:b.ky1,cz1:b.cz1,kx2:b.kx2,ky2:b.ky2,cz2:b.cz2,on:b.on};
     });
     const supports=frameState.supports.map(s=>({node:s.node,fixX:s.fixX,fixY:s.fixY,fixRot:s.fixRot}));
     const loads=frameState.loads.map(l=>({node:l.node,Px:l.Fx||0,Py:l.Fz||0,Mz:l.My||0}));
@@ -1796,9 +1809,9 @@ function drawFrame(res,diags){
 
 window.addEventListener('load',()=>{
     frameState.beams=[
-        {x1:0,y1:0,x2:0,y2:5,section:'HEA200'},
-        {x1:6,y1:0,x2:6,y2:5,section:'HEA200'},
-        {x1:0,y1:5,x2:6,y2:5,section:'HEA200'}
+        {name:'B1',x1:0,y1:0,x2:0,y2:5,section:'HEA200',kx1:-1,ky1:-1,cz1:-1,kx2:-1,ky2:-1,cz2:-1,on:true},
+        {name:'B2',x1:6,y1:0,x2:6,y2:5,section:'HEA200',kx1:-1,ky1:-1,cz1:-1,kx2:-1,ky2:-1,cz2:-1,on:true},
+        {name:'B3',x1:0,y1:5,x2:6,y2:5,section:'HEA200',kx1:-1,ky1:-1,cz1:-1,kx2:-1,ky2:-1,cz2:-1,on:true}
     ];
     rebuildNodes();
     frameState.supports=[

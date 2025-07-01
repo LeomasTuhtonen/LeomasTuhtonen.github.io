@@ -386,12 +386,61 @@ function frameElementStiffness(E,A,I,L){
     ];
 }
 
+function invertMatrix(A){
+    const n=A.length;
+    const M=A.map(r=>r.slice());
+    const I=Array.from({length:n},(_,i)=>{
+        const row=new Array(n).fill(0); row[i]=1; return row;});
+    for(let i=0;i<n;i++){
+        let max=i;
+        for(let k=i+1;k<n;k++) if(Math.abs(M[k][i])>Math.abs(M[max][i])) max=k;
+        [M[i],M[max]]=[M[max],M[i]];
+        [I[i],I[max]]=[I[max],I[i]];
+        const pivot=M[i][i];
+        for(let j=0;j<n;j++){M[i][j]/=pivot; I[i][j]/=pivot;}
+        for(let k=0;k<n;k++) if(k!==i){
+            const f=M[k][i];
+            for(let j=0;j<n;j++){M[k][j]-=f*M[i][j]; I[k][j]-=f*I[i][j];}
+        }
+    }
+    return I;
+}
+
+function frameElementWithReleases(E,A,I,L,rel){
+    const kLocal=frameElementStiffness(E,A,I,L);
+    const INF=1e12;
+    const kx1=rel?.kx1===undefined?INF:(rel.kx1<0?INF:rel.kx1);
+    const ky1=rel?.ky1===undefined?INF:(rel.ky1<0?INF:rel.ky1);
+    const cz1=rel?.cz1===undefined?INF:(rel.cz1<0?INF:rel.cz1);
+    const kx2=rel?.kx2===undefined?INF:(rel.kx2<0?INF:rel.kx2);
+    const ky2=rel?.ky2===undefined?INF:(rel.ky2<0?INF:rel.ky2);
+    const cz2=rel?.cz2===undefined?INF:(rel.cz2<0?INF:rel.cz2);
+    const K=Array.from({length:12},()=>new Array(12).fill(0));
+    for(let i=0;i<6;i++) for(let j=0;j<6;j++) K[6+i][6+j]=kLocal[i][j];
+    const addSpr=(k,n,b)=>{
+        if(k===0) return;
+        K[n][n]+=k; K[b][b]+=k; K[n][b]-=k; K[b][n]-=k;
+    };
+    addSpr(kx1,0,6); addSpr(ky1,1,7); addSpr(cz1,2,8);
+    addSpr(kx2,3,9); addSpr(ky2,4,10); addSpr(cz2,5,11);
+    const Knn=K.slice(0,6).map(r=>r.slice(0,6));
+    const Knb=K.slice(0,6).map(r=>r.slice(6));
+    const Kbn=K.slice(6).map(r=>r.slice(0,6));
+    const Kbb=K.slice(6).map(r=>r.slice(6));
+    const KbbInv=invertMatrix(Kbb);
+    const temp=multiplyMatrix(Knb,KbbInv);
+    const sub=multiplyMatrix(temp,Kbn);
+    const Kcond=Knn.map((row,i)=>row.map((v,j)=>v-sub[i][j]));
+    return {Kcond,KbbInv,Kbn,kLocal};
+}
+
 function computeFrameResults(frame){
     const n=frame.nodes.length; if(n===0) return null;
     const dof=3*n;
     const K=Array.from({length:dof},()=>new Array(dof).fill(0));
     const F=new Array(dof).fill(0);
     frame.beams.forEach(el=>{
+        if(el.on===false) return;
         const n1=el.n1,n2=el.n2;
         const p1=frame.nodes[n1], p2=frame.nodes[n2];
         const dx=p2.x-p1.x, dy=p2.y-p1.y;
@@ -400,7 +449,8 @@ function computeFrameResults(frame){
         const E=el.E||frame.E||210e9;
         const I=el.I||frame.I||1e-6;
         const A=el.A||frame.A||0.001;
-        const kLocal=frameElementStiffness(E,A,I,L);
+        const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
+        const {Kcond}=frameElementWithReleases(E,A,I,L,rel);
         const T=[
             [ c, s,0, 0,0,0],
             [-s, c,0, 0,0,0],
@@ -409,7 +459,7 @@ function computeFrameResults(frame){
             [ 0,0,0,-s,c,0],
             [ 0,0,0, 0,0,1]
         ];
-        const kG=multiplyMatrix(transpose(T),multiplyMatrix(kLocal,T));
+        const kG=multiplyMatrix(transpose(T),multiplyMatrix(Kcond,T));
         const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
         for(let i=0;i<6;i++) for(let j=0;j<6;j++) K[dofs[i]][dofs[j]]+=kG[i][j];
     });
@@ -434,13 +484,15 @@ function computeFrameResults(frame){
 function computeFrameDiagrams(frame,res,divisions=1){
     const diags=[];
     frame.beams.forEach(el=>{
+        if(el.on===false) return;
         const n1=el.n1,n2=el.n2;
         const p1=frame.nodes[n1], p2=frame.nodes[n2];
         const dx=p2.x-p1.x, dy=p2.y-p1.y;
         const L=Math.hypot(dx,dy);
         const c=dx/L, s=dy/L;
         const E=el.E||frame.E||210e9; const I=el.I||frame.I||1e-6; const A=el.A||frame.A||0.001;
-        const kLocal=frameElementStiffness(E,A,I,L);
+        const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
+        const {Kcond,KbbInv,Kbn,kLocal}=frameElementWithReleases(E,A,I,L,rel);
         const T=[
             [ c, s,0, 0,0,0],
             [-s, c,0, 0,0,0],
@@ -452,7 +504,8 @@ function computeFrameDiagrams(frame,res,divisions=1){
         const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
         const dGlobal=dofs.map(i=>res.displacements[i]);
         const dLocal=multiplyMatrixVector(T,dGlobal);
-        const fLocal=multiplyMatrixVector(kLocal,dLocal);
+        const Ub=multiplyMatrixVector(KbbInv,multiplyMatrixVector(Kbn,dLocal)).map(v=>-v);
+        const fLocal=multiplyMatrixVector(kLocal,Ub);
         // Ensure axial forces have consistent sign at both ends.
         // Compression is positive when fLocal[0] is negative.
         const N1=-fLocal[0], N2=fLocal[3];
