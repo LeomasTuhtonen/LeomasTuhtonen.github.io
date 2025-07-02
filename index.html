@@ -1978,7 +1978,7 @@ function drawFrame(res,diags){
             const vals=diags[i][type];
             const path=new framePaper.Path({strokeColor:'red', fillColor:'rgba(255,0,0,0.3)'});
             path.add(p1);
-            const sign=-1; // draw diagram on tension side
+            const sign = dir.x >= 0 ? -1 : 1; // draw diagram on tension side
             vals.forEach((pt,j)=>{
                 const t=j/(vals.length-1);
                 const base=toPoint(n1.x+(n2.x-n1.x)*t,n1.y+(n2.y-n1.y)*t);

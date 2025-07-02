@@ -479,7 +479,7 @@ function computeFrameResults(frame){
         const a=l.x; const b=L-a;
         const local=[0,0,0,0,0,0];
         const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
-        const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
+        const FyLocal=s*(l.Fx||0)-c*(l.Fy||0);
         if(FxLocal){
             local[0]+=FxLocal*(1-a/L);
             local[3]+=FxLocal*(a/L);
@@ -518,7 +518,7 @@ function computeFrameResults(frame){
             const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
             const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
             const FxLocal=(c*wX + s*wY)*(x2-x1);
-            const FyLocal=(-s*wX + c*wY)*(x2-x1);
+            const FyLocal=(s*wX - c*wY)*(x2-x1);
             const a=mid; const b=L-a;
             const local=[0,0,0,0,0,0];
             if(FxLocal){
@@ -554,7 +554,7 @@ function computeFrameResults(frame){
 
 function computeFrameDiagrams(frame,res,divisions=1){
     const diags=[];
-    const segs=10;
+    const segs=Math.max(1,10*divisions);
     frame.beams.forEach((el,idx)=>{
         if(el.on===false) return;
         const n1=el.n1,n2=el.n2;
@@ -583,7 +583,7 @@ function computeFrameDiagrams(frame,res,divisions=1){
         (frame.memberPointLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
             const a=l.x; const b=L-a;
             const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
-            const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
+            const FyLocal=s*(l.Fx||0)-c*(l.Fy||0);
             if(FxLocal){
                 eq[0]+=FxLocal*(1-a/L);
                 eq[3]+=FxLocal*(a/L);
@@ -610,7 +610,7 @@ function computeFrameDiagrams(frame,res,divisions=1){
                 const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
                 const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
                 const FxLocal=(c*wX + s*wY)*(x2-x1);
-                const FyLocal=(-s*wX + c*wY)*(x2-x1);
+                const FyLocal=(s*wX - c*wY)*(x2-x1);
                 const a=mid; const b=L-a;
                 if(FxLocal){
                     eq[0]+=FxLocal*(1-a/L);
@@ -634,7 +634,7 @@ function computeFrameDiagrams(frame,res,divisions=1){
         const pointLoads=[];
         (frame.memberPointLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
             const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
-            const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
+            const FyLocal=s*(l.Fx||0)-c*(l.Fy||0);
             pointLoads.push({x:l.x,Fx:FxLocal,Fy:FyLocal,M:l.Mz||0});
         });
         const lineSegs=[];
@@ -647,12 +647,13 @@ function computeFrameDiagrams(frame,res,divisions=1){
                 const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
                 const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
                 const FxLocal=c*wX + s*wY;
-                const FyLocal=-s*wX + c*wY;
+                const FyLocal=s*wX - c*wY;
                 lineSegs.push({start:x1,end:x2,wX:FxLocal,wY:FyLocal});
             }
         });
 
         const positions=new Set([0,L]);
+        for(let d=1; d<divisions; d++) positions.add(L*d/divisions);
         pointLoads.forEach(p=>positions.add(p.x));
         lineSegs.forEach(seg=>{positions.add(seg.start); positions.add(seg.end);});
         const posArr=Array.from(positions).sort((a,b)=>a-b);
