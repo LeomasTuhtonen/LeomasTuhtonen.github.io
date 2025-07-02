@@ -1698,7 +1698,7 @@ function solveFrame(){
     });
     const supports=frameState.supports.map(s=>({node:s.node,fixX:s.fixX,fixY:s.fixY,fixRot:s.fixRot}));
     const loads=frameState.loads.map(l=>({node:l.node,Px:l.Fx||0,Py:l.Fz||0,Mz:l.My||0}));
-    const mPoint=frameState.memberPointLoads.map(l=>({beam:l.beam,x:l.x,Px:l.Fx||0,Py:l.Fy||0,Mz:l.Mz||0}));
+    const mPoint=frameState.memberPointLoads.map(l=>({beam:l.beam,x:l.x,Fx:l.Fx||0,Fy:l.Fy||0,Mz:l.Mz||0}));
     const mLine=frameState.memberLineLoads.map(l=>({beam:l.beam,start:l.start,end:l.end,wX1:l.wX1||0,wX2:l.wX2||0,wY1:l.wY1||0,wY2:l.wY2||0}));
     const frame={nodes:frameState.nodes,beams,supports,loads,memberPointLoads:mPoint,memberLineLoads:mLine,E:state.E};
     const res=computeFrameResults(frame);
