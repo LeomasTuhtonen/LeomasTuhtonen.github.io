@@ -1,5 +1,5 @@
 const assert = require('assert');
-const {computeResults, computeSectionDesign, computeFrameResults} = require('../solver');
+const {computeResults, computeSectionDesign, computeFrameResults, computeFrameDiagrams} = require('../solver');
 
 function close(actual, expected, tol, msg){
   if(Math.abs(actual-expected) > tol) throw new Error(msg+` expected ${expected} got ${actual}`);
@@ -91,4 +91,21 @@ function close(actual, expected, tol, msg){
   };
   const res=computeFrameResults(frame);
   assert(res.displacements[3]>0,'positive axial displacement expected');
+})();
+
+// Frame diagrams with member point load
+(function testFrameDiagramsPoint(){
+  const frame={
+    nodes:[{x:0,y:0},{x:1,y:0}],
+    beams:[{n1:0,n2:1}],
+    supports:[{node:0,fixX:true,fixY:true,fixRot:true}],
+    loads:[],
+    memberPointLoads:[{beam:0,x:0.5,Fy:-1}]
+  };
+  const res=computeFrameResults(frame);
+  const diags=computeFrameDiagrams(frame,res,1);
+  const shear=diags[0].shear.map(p=>p.y);
+  const moment=diags[0].moment.map(p=>p.y);
+  assert(Math.abs(shear[0]+1)<1e-6 && Math.abs(shear[2])<1e-6,'shear diagram');
+  assert(Math.abs(moment[0]+0.5)<1e-6 && Math.abs(moment[2])<1e-6,'moment diagram');
 })();

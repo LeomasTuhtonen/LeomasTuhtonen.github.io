@@ -554,7 +554,8 @@ function computeFrameResults(frame){
 
 function computeFrameDiagrams(frame,res,divisions=1){
     const diags=[];
-    frame.beams.forEach(el=>{
+    const segs=10;
+    frame.beams.forEach((el,idx)=>{
         if(el.on===false) return;
         const n1=el.n1,n2=el.n2;
         const p1=frame.nodes[n1], p2=frame.nodes[n2];
@@ -577,19 +578,106 @@ function computeFrameDiagrams(frame,res,divisions=1){
         const dLocal=multiplyMatrixVector(T,dGlobal);
         const Ub=multiplyMatrixVector(KbbInv,multiplyMatrixVector(Kbn,dLocal)).map(v=>-v);
         const fLocal=multiplyMatrixVector(kLocal,Ub);
-        // Ensure axial forces have consistent sign at both ends.
-        // Compression is positive when fLocal[0] is negative.
-        const N1=-fLocal[0], N2=fLocal[3];
-        const V1=fLocal[1], V2=-fLocal[4];
-        const M1=fLocal[2], M2=-fLocal[5];
-        const shear=[], moment=[], normal=[];
-        for(let j=0;j<=divisions;j++){
-            const t=j/divisions;
-            shear.push({x:t*L,y:V1+(V2-V1)*t});
-            moment.push({x:t*L,y:M1+(M2-M1)*t});
-            normal.push({x:t*L,y:N1+(N2-N1)*t});
+
+        const eq=[0,0,0,0,0,0];
+        (frame.memberPointLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
+            const a=l.x; const b=L-a;
+            const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
+            const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
+            if(FxLocal){
+                eq[0]+=FxLocal*(1-a/L);
+                eq[3]+=FxLocal*(a/L);
+            }
+            if(FyLocal){
+                const P=FyLocal;
+                eq[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
+                eq[2]+=P*a*b*b/Math.pow(L,2);
+                eq[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
+                eq[5]+=-P*a*a*b/Math.pow(L,2);
+            }
+            if(l.Mz){
+                eq[2]+=l.Mz*(1-a/L);
+                eq[5]+=l.Mz*(a/L);
+            }
+        });
+        (frame.memberLineLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
+            for(let i=0;i<segs;i++){
+                const t1=i/segs, t2=(i+1)/segs;
+                const x1=l.start+(l.end-l.start)*t1;
+                const x2=l.start+(l.end-l.start)*t2;
+                if(x2<=0||x1>=L) continue;
+                const mid=(x1+x2)/2;
+                const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
+                const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
+                const FxLocal=(c*wX + s*wY)*(x2-x1);
+                const FyLocal=(-s*wX + c*wY)*(x2-x1);
+                const a=mid; const b=L-a;
+                if(FxLocal){
+                    eq[0]+=FxLocal*(1-a/L);
+                    eq[3]+=FxLocal*(a/L);
+                }
+                if(FyLocal){
+                    const P=FyLocal;
+                    eq[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
+                    eq[2]+=P*a*b*b/Math.pow(L,2);
+                    eq[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
+                    eq[5]+=-P*a*a*b/Math.pow(L,2);
+                }
+            }
+        });
+
+        const fAdj=fLocal.map((v,i)=>v-eq[i]);
+        const N1=-fAdj[0], N2=fAdj[3];
+        const V1=fAdj[1], V2=-fAdj[4];
+        const M1=fAdj[2], M2=-fAdj[5];
+
+        const pointLoads=[];
+        (frame.memberPointLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
+            const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
+            const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
+            pointLoads.push({x:l.x,Fx:FxLocal,Fy:FyLocal,M:l.Mz||0});
+        });
+        const lineSegs=[];
+        (frame.memberLineLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
+            for(let i=0;i<segs;i++){
+                const t1=i/segs, t2=(i+1)/segs;
+                const x1=l.start+(l.end-l.start)*t1;
+                const x2=l.start+(l.end-l.start)*t2;
+                if(x2<=0||x1>=L) continue;
+                const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
+                const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
+                const FxLocal=c*wX + s*wY;
+                const FyLocal=-s*wX + c*wY;
+                lineSegs.push({start:x1,end:x2,wX:FxLocal,wY:FyLocal});
+            }
+        });
+
+        const positions=new Set([0,L]);
+        pointLoads.forEach(p=>positions.add(p.x));
+        lineSegs.forEach(seg=>{positions.add(seg.start); positions.add(seg.end);});
+        const posArr=Array.from(positions).sort((a,b)=>a-b);
+        let shear=-V1, moment=-M1, normal=-N1;
+        const shearArr=[{x:0,y:shear}], momentArr=[{x:0,y:moment}], normalArr=[{x:0,y:normal}];
+        let active=[];
+        for(let i=0;i<posArr.length-1;i++){
+            const x1=posArr[i]; const x2=posArr[i+1];
+            const dx=x2-x1;
+            const wX=active.reduce((a,b)=>a+b.wX,0);
+            const wY=active.reduce((a,b)=>a+b.wY,0);
+            const shearBefore=shear; const normalBefore=normal;
+            shear-=wY*dx;
+            normal-=wX*dx;
+            moment+=-shearBefore*dx-0.5*wY*dx*dx;
+            shearArr.push({x:x2,y:shear});
+            momentArr.push({x:x2,y:moment});
+            normalArr.push({x:x2,y:normal});
+            pointLoads.filter(p=>Math.abs(p.x-x2)<1e-8).forEach(p=>{
+                shear-=p.Fy; normal-=p.Fx; moment-=p.M; shearArr.push({x:x2,y:shear}); momentArr.push({x:x2,y:moment}); normalArr.push({x:x2,y:normal});
+            });
+            lineSegs.filter(seg=>Math.abs(seg.start-x2)<1e-8).forEach(seg=>active.push(seg));
+            lineSegs.filter(seg=>Math.abs(seg.end-x2)<1e-8).forEach(seg=>{const idx=active.indexOf(seg); if(idx>-1) active.splice(idx,1);});
         }
-        diags.push({shear,moment,normal});
+        diags.push({shear:shearArr,moment:momentArr,normal:normalArr});
     });
     return diags;
 }
