@@ -79,3 +79,16 @@ function close(actual, expected, tol, msg){
   const res=computeFrameResults(frame);
   assert(res.displacements.length===frame.nodes.length*3,'member load result');
 })();
+
+// Global axis point load transformation
+(function testGlobalAxisPointLoad(){
+  const frame={
+    nodes:[{x:0,y:0},{x:1,y:0}],
+    beams:[{n1:0,n2:1}],
+    supports:[{node:0,fixX:true,fixY:true,fixRot:true},{node:1,fixY:true,fixRot:true}],
+    loads:[],
+    memberPointLoads:[{beam:0,x:0.5,Fx:1000}]
+  };
+  const res=computeFrameResults(frame);
+  assert(res.displacements[3]>0,'positive axial displacement expected');
+})();
