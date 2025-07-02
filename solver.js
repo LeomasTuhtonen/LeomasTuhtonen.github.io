@@ -478,12 +478,14 @@ function computeFrameResults(frame){
         const c=dx/L, s=dy/L;
         const a=l.x; const b=L-a;
         const local=[0,0,0,0,0,0];
-        if(l.Fx){
-            local[0]+=l.Fx*(1-a/L);
-            local[3]+=l.Fx*(a/L);
+        const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
+        const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
+        if(FxLocal){
+            local[0]+=FxLocal*(1-a/L);
+            local[3]+=FxLocal*(a/L);
         }
-        if(l.Fy){
-            const P=l.Fy;
+        if(FyLocal){
+            const P=FyLocal;
             local[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
             local[2]+=P*a*b*b/Math.pow(L,2);
             local[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
@@ -494,7 +496,7 @@ function computeFrameResults(frame){
             local[5]+=l.Mz*(a/L);
         }
         const T=[[ c,-s,0,0,0,0],[ s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c,-s,0],[0,0,0, s, c,0],[0,0,0,0,0,1]];
-        const gl=multiplyMatrixVector(T,local);
+        const gl=multiplyMatrixVector(transpose(T),local);
         const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
         for(let i=0;i<6;i++) F[dofs[i]]+=gl[i];
     });
@@ -512,16 +514,26 @@ function computeFrameResults(frame){
             const x1=l.start + (l.end-l.start)*t1;
             const x2=l.start + (l.end-l.start)*t2;
             if(x2<=0||x1>=L) continue;
-            const mid=(x1+x2)/2; const w=l.w1+(l.w2-l.w1)*((t1+t2)/2);
-            const P=w*(x2-x1);
+            const mid=(x1+x2)/2;
+            const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
+            const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
+            const FxLocal=(c*wX + s*wY)*(x2-x1);
+            const FyLocal=(-s*wX + c*wY)*(x2-x1);
             const a=mid; const b=L-a;
             const local=[0,0,0,0,0,0];
-            local[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
-            local[2]+=P*a*b*b/Math.pow(L,2);
-            local[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
-            local[5]+=-P*a*a*b/Math.pow(L,2);
+            if(FxLocal){
+                local[0]+=FxLocal*(1-a/L);
+                local[3]+=FxLocal*(a/L);
+            }
+            if(FyLocal){
+                const P=FyLocal;
+                local[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
+                local[2]+=P*a*b*b/Math.pow(L,2);
+                local[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
+                local[5]+=-P*a*a*b/Math.pow(L,2);
+            }
             const T=[[ c,-s,0,0,0,0],[ s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c,-s,0],[0,0,0, s, c,0],[0,0,0,0,0,1]];
-            const gl=multiplyMatrixVector(T,local);
+            const gl=multiplyMatrixVector(transpose(T),local);
             const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
             for(let j=0;j<6;j++) F[dofs[j]]+=gl[j];
         }
