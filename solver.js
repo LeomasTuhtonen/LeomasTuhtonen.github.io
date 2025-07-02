@@ -548,7 +548,8 @@ function computeFrameResults(frame){
     const U=gaussSolve(Kmod,Fmod);
     const full=new Array(dof).fill(0); let c=0;
     for(let i=0;i<dof;i++){if(!fixed.includes(i)) full[i]=U[c++];}
-    return {displacements:full};
+    const reactions=multiplyMatrixVector(K,full).map((v,i)=>v-F[i]);
+    return {displacements:full,reactions};
 }
 
 function computeFrameDiagrams(frame,res,divisions=1){
