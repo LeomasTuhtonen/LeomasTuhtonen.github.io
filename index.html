@@ -313,6 +313,10 @@
                     <div id="frameMemberLineLoads"></div>
                     <button onclick="addFrameMemberLineLoad()">Add Line Load</button>
                 </div>
+                <div class="section">
+                    <h2>Support Reactions</h2>
+                    <div id="frameSupportReactions"></div>
+                </div>
             </div>
             <div id="frameDiagram" class="section">
                 <div id="frameToolbar">
@@ -1703,6 +1707,7 @@ function solveFrame(){
     const frame={nodes:frameState.nodes,beams,supports,loads,memberPointLoads:mPoint,memberLineLoads:mLine,E:state.E};
     const res=computeFrameResults(frame);
     if(!res) return;
+    updateFrameReactions(res);
     const div=parseInt(document.getElementById('frameDiv')?.value||'1');
     const diags=computeFrameDiagrams(frame,res,div);
     frameRes=res;
@@ -1710,6 +1715,24 @@ function solveFrame(){
     if(document.getElementById('frameTab').style.display!=='none'){
         drawFrame(res,diags);
     }
+}
+
+function updateFrameReactions(res){
+    const table=document.getElementById('frameSupportReactions');
+    if(!table){return;}
+    if(!res){table.innerHTML='';return;}
+    let html='<table><thead><tr><th>Support</th><th>Node</th><th>Rx (N)</th><th>Ry (N)</th><th>Rz (N·m)</th></tr></thead><tbody>';
+    let sumX=0,sumY=0,sumZ=0;
+    frameState.supports.forEach((s,i)=>{
+        const rx=s.fixX?res.reactions[3*s.node]:0;
+        const ry=s.fixY?res.reactions[3*s.node+1]:0;
+        const rz=s.fixRot?res.reactions[3*s.node+2]:0;
+        sumX+=rx; sumY+=ry; sumZ+=rz;
+        html+=`<tr><td>${i+1}</td><td>${s.node}</td><td>${rx.toFixed(1)}</td><td>${ry.toFixed(1)}</td><td>${rz.toFixed(1)}</td></tr>`;
+    });
+    html+=`<tr><th colspan="2">Sum</th><th>${sumX.toFixed(1)}</th><th>${sumY.toFixed(1)}</th><th>${sumZ.toFixed(1)}</th></tr>`;
+    html+='</tbody></table>';
+    table.innerHTML=html;
 }
 
 function drawFrame(res,diags){
@@ -1846,12 +1869,11 @@ function drawFrame(res,diags){
             const n1=frameState.nodes[b.n1]; const n2=frameState.nodes[b.n2];
             const dx=n2.x-n1.x, dy=n2.y-n1.y; const L=Math.hypot(dx,dy);
             const dir=new framePaper.Point(dx,dy).normalize();
-            const perp=dir.rotate(90);
             const p=toPoint(n1.x+dir.x*l.x,n1.y+dir.y*l.x);
             const fx=l.Fx||0, fy=l.Fy||0;
             const mag=Math.hypot(fx,fy);
             if(mag!==0){
-                const start=p.subtract(dir.multiply(fx*forceScale)).subtract(perp.multiply(fy*forceScale));
+                const start=toPoint(n1.x+dir.x*l.x - fx*forceScale, n1.y+dir.y*l.x - fy*forceScale);
                 const vec=p.subtract(start).normalize();
                 new framePaper.Path({segments:[start,p], strokeColor:'green'});
                 const left=p.subtract(vec.multiply(6)).add(vec.rotate(90).multiply(4));
