@@ -468,6 +468,64 @@ function computeFrameResults(frame){
         if(l.Py) F[3*l.node+1]+=l.Py;
         if(l.Mz) F[3*l.node+2]+=l.Mz;
     });
+    (frame.memberPointLoads||[]).forEach(l=>{
+        const el=frame.beams[l.beam];
+        if(!el||el.on===false) return;
+        const n1=el.n1,n2=el.n2;
+        const p1=frame.nodes[n1], p2=frame.nodes[n2];
+        const dx=p2.x-p1.x, dy=p2.y-p1.y;
+        const L=Math.hypot(dx,dy); if(L===0) return;
+        const c=dx/L, s=dy/L;
+        const a=l.x; const b=L-a;
+        const local=[0,0,0,0,0,0];
+        if(l.Fx){
+            local[0]+=l.Fx*(1-a/L);
+            local[3]+=l.Fx*(a/L);
+        }
+        if(l.Fy){
+            const P=l.Fy;
+            local[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
+            local[2]+=P*a*b*b/Math.pow(L,2);
+            local[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
+            local[5]+=-P*a*a*b/Math.pow(L,2);
+        }
+        if(l.Mz){
+            local[2]+=l.Mz*(1-a/L);
+            local[5]+=l.Mz*(a/L);
+        }
+        const T=[[ c,-s,0,0,0,0],[ s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c,-s,0],[0,0,0, s, c,0],[0,0,0,0,0,1]];
+        const gl=multiplyMatrixVector(T,local);
+        const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
+        for(let i=0;i<6;i++) F[dofs[i]]+=gl[i];
+    });
+    (frame.memberLineLoads||[]).forEach(l=>{
+        const el=frame.beams[l.beam];
+        if(!el||el.on===false) return;
+        const n1=el.n1,n2=el.n2;
+        const p1=frame.nodes[n1], p2=frame.nodes[n2];
+        const dx=p2.x-p1.x, dy=p2.y-p1.y;
+        const L=Math.hypot(dx,dy); if(L===0) return;
+        const c=dx/L, s=dy/L;
+        const segs=10;
+        for(let i=0;i<segs;i++){
+            const t1=i/segs, t2=(i+1)/segs;
+            const x1=l.start + (l.end-l.start)*t1;
+            const x2=l.start + (l.end-l.start)*t2;
+            if(x2<=0||x1>=L) continue;
+            const mid=(x1+x2)/2; const w=l.w1+(l.w2-l.w1)*((t1+t2)/2);
+            const P=w*(x2-x1);
+            const a=mid; const b=L-a;
+            const local=[0,0,0,0,0,0];
+            local[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
+            local[2]+=P*a*b*b/Math.pow(L,2);
+            local[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
+            local[5]+=-P*a*a*b/Math.pow(L,2);
+            const T=[[ c,-s,0,0,0,0],[ s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c,-s,0],[0,0,0, s, c,0],[0,0,0,0,0,1]];
+            const gl=multiplyMatrixVector(T,local);
+            const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
+            for(let j=0;j<6;j++) F[dofs[j]]+=gl[j];
+        }
+    });
     const fixed=[];
     frame.supports.forEach(s=>{
         if(s.fixX) fixed.push(3*s.node);
