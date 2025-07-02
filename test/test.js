@@ -66,3 +66,16 @@ function close(actual, expected, tol, msg){
   const res = computeFrameResults(frame);
   assert(res.displacements.length === frame.nodes.length*3, 'frame result size');
 })();
+
+// Frame member load test
+(function testFrameMemberPoint(){
+  const frame={
+    nodes:[{x:0,y:0},{x:0,y:3}],
+    beams:[{n1:0,n2:1}],
+    supports:[{node:0,fixX:true,fixY:true,fixRot:true}],
+    loads:[],
+    memberPointLoads:[{beam:0,x:1,Fy:-1000}]
+  };
+  const res=computeFrameResults(frame);
+  assert(res.displacements.length===frame.nodes.length*3,'member load result');
+})();

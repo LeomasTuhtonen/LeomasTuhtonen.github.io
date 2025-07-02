@@ -294,6 +294,25 @@
                     <div id="frameLoads"></div>
                     <button onclick="addFrameLoad()">Add Load</button>
                 </div>
+                <div class="section">
+                    <h2>Member Loads</h2>
+                    <h3>Point Loads</h3>
+                    <svg id="mPointFig" width="120" height="40" style="display:block;margin-bottom:4px;">
+                        <line x1="10" y1="20" x2="110" y2="20" stroke="black"/>
+                        <line x1="60" y1="20" x2="60" y2="5" stroke="red" marker-end="url(#arrow)"/>
+                        <defs><marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="red" /></marker></defs>
+                    </svg>
+                    <div id="frameMemberPointLoads"></div>
+                    <button onclick="addFrameMemberPointLoad()">Add Point Load</button>
+                    <h3>Line Loads</h3>
+                    <svg id="mLineFig" width="120" height="40" style="display:block;margin-bottom:4px;">
+                        <line x1="10" y1="30" x2="110" y2="30" stroke="black"/>
+                        <path d="M20,30 L20,15 M40,30 L40,15 M60,30 L60,15 M80,30 L80,15 M100,30 L100,15" stroke="blue" marker-end="url(#arrowBlue)"/>
+                        <defs><marker id="arrowBlue" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="blue" /></marker></defs>
+                    </svg>
+                    <div id="frameMemberLineLoads"></div>
+                    <button onclick="addFrameMemberLineLoad()">Add Line Load</button>
+                </div>
             </div>
             <div id="frameDiagram" class="section">
                 <div id="frameToolbar">
@@ -1453,7 +1472,7 @@ addCombination('Comb2','SW:0.90,LC1:1.50');
 solveSelected();
 
 // Frame tab logic (list based)
-const frameState={beams:[],supports:[],loads:[],nodes:[]};
+const frameState={beams:[],supports:[],loads:[],memberPointLoads:[],memberLineLoads:[],nodes:[]};
 let frameRes=null;
 let frameDiags=null;
 let framePaper=null;
@@ -1470,6 +1489,8 @@ function addFrameBeam(){
     rebuildFrameBeams();
     rebuildNodes();
     rebuildNodeOptions();
+    rebuildFrameMemberPointLoads();
+    rebuildFrameMemberLineLoads();
     solveFrame();
 }
 
@@ -1478,6 +1499,8 @@ function removeFrameBeam(i){
     rebuildFrameBeams();
     rebuildNodes();
     rebuildNodeOptions();
+    rebuildFrameMemberPointLoads();
+    rebuildFrameMemberLineLoads();
     solveFrame();
 }
 
@@ -1514,6 +1537,8 @@ function rebuildFrameBeams(){
     });
     html+='</tbody></table>';
     c.innerHTML=html;
+    rebuildFrameMemberPointLoads();
+    rebuildFrameMemberLineLoads();
     solveFrame();
 }
 
@@ -1578,6 +1603,68 @@ function rebuildFrameLoads(){
     solveFrame();
 }
 
+function addFrameMemberPointLoad(){
+    frameState.memberPointLoads.push({beam:0,x:0,Fx:0,Fy:-1,Mz:0});
+    rebuildFrameMemberPointLoads();
+    solveFrame();
+}
+
+function removeFrameMemberPointLoad(i){
+    frameState.memberPointLoads.splice(i,1);
+    rebuildFrameMemberPointLoads();
+    solveFrame();
+}
+
+function rebuildFrameMemberPointLoads(){
+    const c=document.getElementById('frameMemberPointLoads');
+    c.innerHTML='';
+    frameState.memberPointLoads.forEach((l,i)=>{
+        const opts=frameState.beams.map((b,j)=>`<option value="${j}"${j===l.beam?' selected':''}>${j}</option>`).join('');
+        const row=document.createElement('div');
+        row.className='input-row frame-row';
+        row.innerHTML=`<label>Load ${i+1}</label>`+
+            `<div class='cell'>beam<select onchange='frameState.memberPointLoads[${i}].beam=parseInt(this.value); solveFrame();'>${opts}</select></div>`+
+            `<div class='cell'>x<input type='number' value='${l.x}' step='0.1' onchange='frameState.memberPointLoads[${i}].x=parseFloat(this.value); solveFrame();'/></div>`+
+            `<div class='cell'>Fx<input type='number' value='${l.Fx}' step='1' onchange='frameState.memberPointLoads[${i}].Fx=parseFloat(this.value); solveFrame();'/></div>`+
+            `<div class='cell'>Fy<input type='number' value='${l.Fy}' step='1' onchange='frameState.memberPointLoads[${i}].Fy=parseFloat(this.value); solveFrame();'/></div>`+
+            `<div class='cell'>Mz<input type='number' value='${l.Mz}' step='1' onchange='frameState.memberPointLoads[${i}].Mz=parseFloat(this.value); solveFrame();'/></div>`+
+            `<button class='remove-btn' onclick='removeFrameMemberPointLoad(${i})'>Remove</button>`;
+        c.appendChild(row);
+    });
+    solveFrame();
+}
+
+function addFrameMemberLineLoad(){
+    frameState.memberLineLoads.push({beam:0,start:0,end:1,w1:-1,w2:-1});
+    rebuildFrameMemberLineLoads();
+    solveFrame();
+}
+
+function removeFrameMemberLineLoad(i){
+    frameState.memberLineLoads.splice(i,1);
+    rebuildFrameMemberLineLoads();
+    solveFrame();
+}
+
+function rebuildFrameMemberLineLoads(){
+    const c=document.getElementById('frameMemberLineLoads');
+    c.innerHTML='';
+    frameState.memberLineLoads.forEach((l,i)=>{
+        const opts=frameState.beams.map((b,j)=>`<option value="${j}"${j===l.beam?' selected':''}>${j}</option>`).join('');
+        const row=document.createElement('div');
+        row.className='input-row frame-row';
+        row.innerHTML=`<label>Line ${i+1}</label>`+
+            `<div class='cell'>beam<select onchange='frameState.memberLineLoads[${i}].beam=parseInt(this.value); solveFrame();'>${opts}</select></div>`+
+            `<div class='cell'>start<input type='number' value='${l.start}' step='0.1' onchange='frameState.memberLineLoads[${i}].start=parseFloat(this.value); solveFrame();'/></div>`+
+            `<div class='cell'>end<input type='number' value='${l.end}' step='0.1' onchange='frameState.memberLineLoads[${i}].end=parseFloat(this.value); solveFrame();'/></div>`+
+            `<div class='cell'>w1<input type='number' value='${l.w1}' step='1' onchange='frameState.memberLineLoads[${i}].w1=parseFloat(this.value); solveFrame();'/></div>`+
+            `<div class='cell'>w2<input type='number' value='${l.w2}' step='1' onchange='frameState.memberLineLoads[${i}].w2=parseFloat(this.value); solveFrame();'/></div>`+
+            `<button class='remove-btn' onclick='removeFrameMemberLineLoad(${i})'>Remove</button>`;
+        c.appendChild(row);
+    });
+    solveFrame();
+}
+
 function rebuildNodes(){
     const nodes=[]; const map={};
     frameState.beams.forEach(b=>{
@@ -1609,7 +1696,9 @@ function solveFrame(){
     });
     const supports=frameState.supports.map(s=>({node:s.node,fixX:s.fixX,fixY:s.fixY,fixRot:s.fixRot}));
     const loads=frameState.loads.map(l=>({node:l.node,Px:l.Fx||0,Py:l.Fz||0,Mz:l.My||0}));
-    const frame={nodes:frameState.nodes,beams,supports,loads,E:state.E};
+    const mPoint=frameState.memberPointLoads.map(l=>({beam:l.beam,x:l.x,Px:l.Fx||0,Py:l.Fy||0,Mz:l.Mz||0}));
+    const mLine=frameState.memberLineLoads.map(l=>({beam:l.beam,start:l.start,end:l.end,w1:l.w1||0,w2:l.w2||0}));
+    const frame={nodes:frameState.nodes,beams,supports,loads,memberPointLoads:mPoint,memberLineLoads:mLine,E:state.E};
     const res=computeFrameResults(frame);
     if(!res) return;
     const div=parseInt(document.getElementById('frameDiv')?.value||'1');
@@ -1746,6 +1835,69 @@ function drawFrame(res,diags){
         });
     }
 
+    if(frameState.memberPointLoads.length){
+        const maxF=Math.max(...frameState.memberPointLoads.map(l=>Math.hypot(l.Fx||0,l.Fy||0)),0);
+        const forceScale=30/((maxF||1)*scale);
+        const momentScale=20;
+        frameState.memberPointLoads.forEach(l=>{
+            const b=frameState.beams[l.beam]; if(!b) return;
+            const n1=frameState.nodes[b.n1]; const n2=frameState.nodes[b.n2];
+            const dx=n2.x-n1.x, dy=n2.y-n1.y; const L=Math.hypot(dx,dy);
+            const dir=new framePaper.Point(dx,dy).normalize();
+            const perp=dir.rotate(90);
+            const p=toPoint(n1.x+dir.x*l.x,n1.y+dir.y*l.x);
+            const fx=l.Fx||0, fy=l.Fy||0;
+            const mag=Math.hypot(fx,fy);
+            if(mag!==0){
+                const start=p.subtract(dir.multiply(fx*forceScale)).subtract(perp.multiply(fy*forceScale));
+                const vec=p.subtract(start).normalize();
+                new framePaper.Path({segments:[start,p], strokeColor:'green'});
+                const left=p.subtract(vec.multiply(6)).add(vec.rotate(90).multiply(4));
+                const right=p.subtract(vec.multiply(6)).add(vec.rotate(-90).multiply(4));
+                new framePaper.Path({segments:[left,p,right], strokeColor:'green', fillColor:'green'});
+            }
+            if(l.Mz){
+                const sign=l.Mz>0?1:-1;
+                const r=momentScale;
+                const start=p.add([r,0]);
+                const through=p.add([0,-sign*r]);
+                const endP=p.add([-r,0]);
+                const arc=new framePaper.Path.Arc(start, through, endP);
+                arc.strokeColor='purple';
+                const d=endP.subtract(through).normalize();
+                const a1=endP.add(d.rotate(90*sign).multiply(6));
+                const a2=endP.add(d.rotate(-90*sign).multiply(6));
+                new framePaper.Path({segments:[a1,endP,a2], strokeColor:'purple', fillColor:'purple'});
+            }
+        });
+    }
+
+    if(frameState.memberLineLoads.length){
+        const maxW=Math.max(...frameState.memberLineLoads.map(l=>Math.max(Math.abs(l.w1||0),Math.abs(l.w2||0))),0);
+        const forceScale=30/((maxW||1)*scale);
+        frameState.memberLineLoads.forEach(l=>{
+            const b=frameState.beams[l.beam]; if(!b) return;
+            const n1=frameState.nodes[b.n1]; const n2=frameState.nodes[b.n2];
+            const dx=n2.x-n1.x, dy=n2.y-n1.y; const L=Math.hypot(dx,dy);
+            const dir=new framePaper.Point(dx,dy).normalize();
+            const perp=dir.rotate(90);
+            const steps=5;
+            for(let i=0;i<=steps;i++){
+                const t=i/steps;
+                const x=l.start+(l.end-l.start)*t;
+                if(x<0||x>L) continue;
+                const w=l.w1+(l.w2-l.w1)*t;
+                const base=toPoint(n1.x+dir.x*x,n1.y+dir.y*x);
+                const end=base.add(perp.multiply(w*forceScale));
+                new framePaper.Path({segments:[end,base], strokeColor:'blue'});
+                const vec=base.subtract(end).normalize();
+                const left=end.add(vec.rotate(30).multiply(4));
+                const right=end.add(vec.rotate(-30).multiply(4));
+                new framePaper.Path({segments:[left,end,right], strokeColor:'blue', fillColor:'blue'});
+            }
+        });
+    }
+
     if(res){
         const scaleInput=document.getElementById('frameDefScale');
         const userVal=scaleInput?parseFloat(scaleInput.value||'1'):1;
@@ -1839,6 +1991,8 @@ window.addEventListener('load',()=>{
     rebuildFrameBeams();
     rebuildFrameSupports();
     rebuildFrameLoads();
+    rebuildFrameMemberPointLoads();
+    rebuildFrameMemberLineLoads();
     solveFrame();
 });
     </script>

@@ -9,6 +9,7 @@ Features:
 - Automatic self weight plus customizable point and line loads.
 - User-defined load combinations.
 - Live charts for loads, shear, bending moment and deflection.
+- Frame tab with beams, supports and node loads plus new member point and line loads with on-diagram illustrations.
 - Design tab showing section properties and checks for bending, shear and lateral-torsional buckling.
 - Export analysis results to PDF.
 
