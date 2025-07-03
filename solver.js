@@ -676,6 +676,12 @@ function computeFrameDiagrams(frame,res,divisions=1){
         });
 
         const fAdj=fLocal.map((v,i)=>v+eq[i]);
+        if(rel.kx1===0) fAdj[0]=0;
+        if(rel.ky1===0) fAdj[1]=0;
+        if(rel.cz1===0) fAdj[2]=0;
+        if(rel.kx2===0) fAdj[3]=0;
+        if(rel.ky2===0) fAdj[4]=0;
+        if(rel.cz2===0) fAdj[5]=0;
         // Use a standard sign convention where positive internal forces
         // correspond to positive diagrams without extra sign inversions
         const N1=fAdj[0], N2=-fAdj[3];
