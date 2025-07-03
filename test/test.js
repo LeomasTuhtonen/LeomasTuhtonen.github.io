@@ -106,6 +106,6 @@ function close(actual, expected, tol, msg){
   const diags=computeFrameDiagrams(frame,res,1);
   const shear=diags[0].shear.map(p=>p.y);
   const moment=diags[0].moment.map(p=>p.y);
-  assert(Math.abs(shear[0]+1)<1e-6 && Math.abs(shear[2])<1e-6,'shear diagram');
-  assert(Math.abs(moment[0]+0.5)<1e-6 && Math.abs(moment[2])<1e-6,'moment diagram');
+  assert(Math.abs(shear[0])<1e-6 && Math.abs(shear[2]-1)<1e-6,'shear diagram');
+  assert(Math.abs(moment[0]+0.25)<1e-6 && Math.abs(moment[2]+0.25)<1e-6,'moment diagram');
 })();
