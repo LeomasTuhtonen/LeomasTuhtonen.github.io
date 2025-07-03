@@ -676,7 +676,9 @@ function computeFrameDiagrams(frame,res,divisions=1){
         });
 
         const fAdj=fLocal.map((v,i)=>v+eq[i]);
-        const N1=-fAdj[0], N2=fAdj[3];
+        // Use a standard sign convention where positive internal forces
+        // correspond to positive diagrams without extra sign inversions
+        const N1=fAdj[0], N2=-fAdj[3];
         const V1=fAdj[1], V2=-fAdj[4];
         const M1=fAdj[2], M2=-fAdj[5];
 
@@ -706,7 +708,8 @@ function computeFrameDiagrams(frame,res,divisions=1){
         pointLoads.forEach(p=>positions.add(p.x));
         lineSegs.forEach(seg=>{positions.add(seg.start); positions.add(seg.end);});
         const posArr=Array.from(positions).sort((a,b)=>a-b);
-        let shear=-V1, moment=-M1, normal=-N1;
+        // Start diagrams with the actual member end forces
+        let shear=V1, moment=M1, normal=N1;
         const shearArr=[{x:0,y:shear}], momentArr=[{x:0,y:moment}], normalArr=[{x:0,y:normal}];
         let active=[];
         for(let i=0;i<posArr.length-1;i++){
@@ -717,7 +720,7 @@ function computeFrameDiagrams(frame,res,divisions=1){
             const shearBefore=shear; const normalBefore=normal;
             shear-=wY*dx;
             normal-=wX*dx;
-            moment+=-shearBefore*dx-0.5*wY*dx*dx;
+            moment+=shearBefore*dx-0.5*wY*dx*dx;
             shearArr.push({x:x2,y:shear});
             momentArr.push({x:x2,y:moment});
             normalArr.push({x:x2,y:normal});
