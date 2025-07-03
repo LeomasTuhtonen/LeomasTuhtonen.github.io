@@ -508,35 +508,59 @@ function computeFrameResults(frame){
         const dx=p2.x-p1.x, dy=p2.y-p1.y;
         const L=Math.hypot(dx,dy); if(L===0) return;
         const c=dx/L, s=dy/L;
-        const segs=10;
-        for(let i=0;i<segs;i++){
-            const t1=i/segs, t2=(i+1)/segs;
-            const x1=l.start + (l.end-l.start)*t1;
-            const x2=l.start + (l.end-l.start)*t2;
-            if(x2<=0||x1>=L) continue;
-            const mid=(x1+x2)/2;
-            const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
-            const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
-            const FxLocal=(c*wX + s*wY)*(x2-x1);
-            const FyLocal=(-s*wX + c*wY)*(x2-x1);
-            const a=mid; const b=L-a;
-            const local=[0,0,0,0,0,0];
-            if(FxLocal){
-                local[0]+=FxLocal*(1-a/L);
-                local[3]+=FxLocal*(a/L);
+        const local=[0,0,0,0,0,0];
+        const isFullUniform = (l.start === 0 || l.start === undefined) &&
+                              (l.end >= L || l.end === undefined) &&
+                              l.wX1 === l.wX2 && l.wY1 === l.wY2;
+
+        if (isFullUniform) {
+            const wX = l.wX1 || 0;
+            const wY = l.wY1 || 0;
+            const w_ax = c * wX + s * wY;
+            const w_prp = -s * wX + c * wY;
+
+            if (w_ax !== 0) {
+                local[0] += w_ax * L / 2;
+                local[3] += w_ax * L / 2;
             }
-            if(FyLocal){
-                const P=FyLocal;
-                local[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
-                local[2]+=P*a*b*b/Math.pow(L,2);
-                local[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
-                local[5]+=-P*a*a*b/Math.pow(L,2);
+            if (w_prp !== 0) {
+                local[1] += w_prp * L / 2;
+                local[2] += w_prp * L * L / 12;
+                local[4] += w_prp * L / 2;
+                local[5] += -w_prp * L * L / 12;
             }
-            const T=[[ c,-s,0,0,0,0],[ s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c,-s,0],[0,0,0, s, c,0],[0,0,0,0,0,1]];
-            const gl=multiplyMatrixVector(transpose(T),local);
-            const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
-            for(let j=0;j<6;j++) F[dofs[j]]+=gl[j];
+        } else {
+            const segs=50;
+            const start=l.start || 0;
+            const end=l.end || L;
+            for(let i=0;i<segs;i++){
+                const t1=i/segs, t2=(i+1)/segs;
+                const x1=start + (end-start)*t1;
+                const x2=start + (end-start)*t2;
+                if(x2<=0||x1>=L) continue;
+                const mid=(x1+x2)/2;
+                const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
+                const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
+                const FxLocal=(c*wX + s*wY)*(x2-x1);
+                const FyLocal=(-s*wX + c*wY)*(x2-x1);
+                const a=mid; const b=L-a;
+                if(FxLocal){
+                    local[0]+=FxLocal*(1-a/L);
+                    local[3]+=FxLocal*(a/L);
+                }
+                if(FyLocal){
+                    const P=FyLocal;
+                    local[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
+                    local[2]+=P*a*b*b/Math.pow(L,2);
+                    local[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
+                    local[5]+=-P*a*a*b/Math.pow(L,2);
+                }
+            }
         }
+        const T=[[ c,-s,0,0,0,0],[ s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c,-s,0],[0,0,0, s, c,0],[0,0,0,0,0,1]];
+        const gl=multiplyMatrixVector(transpose(T),local);
+        const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
+        for(let j=0;j<6;j++) F[dofs[j]]+=gl[j];
     });
     const fixed=[];
     frame.supports.forEach(s=>{
@@ -601,27 +625,52 @@ function computeFrameDiagrams(frame,res,divisions=1){
             }
         });
         (frame.memberLineLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
-            for(let i=0;i<segs;i++){
-                const t1=i/segs, t2=(i+1)/segs;
-                const x1=l.start+(l.end-l.start)*t1;
-                const x2=l.start+(l.end-l.start)*t2;
-                if(x2<=0||x1>=L) continue;
-                const mid=(x1+x2)/2;
-                const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
-                const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
-                const FxLocal=(c*wX + s*wY)*(x2-x1);
-                const FyLocal=(-s*wX + c*wY)*(x2-x1);
-                const a=mid; const b=L-a;
-                if(FxLocal){
-                    eq[0]+=FxLocal*(1-a/L);
-                    eq[3]+=FxLocal*(a/L);
+            const isFullUniform = (l.start === 0 || l.start === undefined) &&
+                                  (l.end >= L || l.end === undefined) &&
+                                  l.wX1 === l.wX2 && l.wY1 === l.wY2;
+
+            if (isFullUniform) {
+                const wX = l.wX1 || 0;
+                const wY = l.wY1 || 0;
+                const w_ax = c * wX + s * wY;
+                const w_prp = -s * wX + c * wY;
+
+                if (w_ax !== 0) {
+                    eq[0] += w_ax * L / 2;
+                    eq[3] += w_ax * L / 2;
                 }
-                if(FyLocal){
-                    const P=FyLocal;
-                    eq[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
-                    eq[2]+=P*a*b*b/Math.pow(L,2);
-                    eq[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
-                    eq[5]+=-P*a*a*b/Math.pow(L,2);
+                if (w_prp !== 0) {
+                    eq[1] += w_prp * L / 2;
+                    eq[2] += w_prp * L * L / 12;
+                    eq[4] += w_prp * L / 2;
+                    eq[5] += -w_prp * L * L / 12;
+                }
+            } else {
+                const segs=50;
+                const start=l.start || 0;
+                const end=l.end || L;
+                for(let i=0;i<segs;i++){
+                    const t1=i/segs, t2=(i+1)/segs;
+                    const x1=start+(end-start)*t1;
+                    const x2=start+(end-start)*t2;
+                    if(x2<=0||x1>=L) continue;
+                    const mid=(x1+x2)/2;
+                    const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
+                    const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
+                    const FxLocal=(c*wX + s*wY)*(x2-x1);
+                    const FyLocal=(-s*wX + c*wY)*(x2-x1);
+                    const a=mid; const b=L-a;
+                    if(FxLocal){
+                        eq[0]+=FxLocal*(1-a/L);
+                        eq[3]+=FxLocal*(a/L);
+                    }
+                    if(FyLocal){
+                        const P=FyLocal;
+                        eq[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
+                        eq[2]+=P*a*b*b/Math.pow(L,2);
+                        eq[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
+                        eq[5]+=-P*a*a*b/Math.pow(L,2);
+                    }
                 }
             }
         });
