@@ -675,7 +675,7 @@ function computeFrameDiagrams(frame,res,divisions=1){
             }
         });
 
-        const fAdj=fLocal.map((v,i)=>v-eq[i]);
+        const fAdj=fLocal.map((v,i)=>v+eq[i]);
         const N1=-fAdj[0], N2=fAdj[3];
         const V1=fAdj[1], V2=-fAdj[4];
         const M1=fAdj[2], M2=-fAdj[5];
