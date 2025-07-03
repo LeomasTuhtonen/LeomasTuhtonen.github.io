@@ -109,3 +109,18 @@ function close(actual, expected, tol, msg){
   assert(Math.abs(shear[0])<1e-6 && Math.abs(shear[2]-1)<1e-6,'shear diagram');
   assert(Math.abs(moment[0]-0.25)<1e-6 && Math.abs(moment[2]-0.25)<1e-6,'moment diagram');
 })();
+
+// Moment release at beam start
+(function testMomentRelease(){
+  const frame={
+    nodes:[{x:0,y:0},{x:1,y:0}],
+    beams:[{n1:0,n2:1,cz1:0}],
+    supports:[{node:0,fixX:true,fixY:true},{node:1,fixY:true}],
+    loads:[],
+    memberPointLoads:[{beam:0,x:0.5,Fy:-1}]
+  };
+  const res=computeFrameResults(frame);
+  const diags=computeFrameDiagrams(frame,res,1);
+  const startMoment=diags[0].moment[0].y;
+  assert(Math.abs(startMoment) < 1e-6, 'moment at hinge not zero');
+})();
