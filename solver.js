@@ -731,7 +731,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
                 const P_ax = c * (p.Fx || 0) + s * (p.Fy || 0);
                 const P_prp = -s * (p.Fx || 0) + c * (p.Fy || 0);
                 normal -= P_ax;
-                shear -= P_prp;
+                shear += P_prp;
                 moment += (p.Mz || 0);
 
                 normalArr.push({x: x2, y: normal});
