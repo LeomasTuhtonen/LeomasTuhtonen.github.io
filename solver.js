@@ -399,6 +399,47 @@ function frameElementStiffness(E,A,I,L){
     ];
 }
 
+// Helper function to create the modified stiffness matrix for diagrams
+// This is a more standard and direct way to handle releases than the complex 12x12 method
+function getModifiedStiffness(E, A, I, L, rel) {
+    let k = frameElementStiffness(E, A, I, L);
+    const hasRelease1 = rel && rel.cz1 === 0;
+    const hasRelease2 = rel && rel.cz2 === 0;
+
+    if (!hasRelease1 && !hasRelease2) {
+        return k; // Return original if no releases
+    }
+
+    // Modify for moment releases (most common case)
+    const EI = E * I;
+    if (hasRelease1 && hasRelease2) { // Pinned-Pinned
+        k[1] = [0, 0, 0, 0, 0, 0];
+        k[2] = [0, 0, 0, 0, 0, 0];
+        k[4] = [0, 0, 0, 0, 0, 0];
+        k[5] = [0, 0, 0, 0, 0, 0];
+    } else if (hasRelease1) { // Pinned-Fixed
+        const L2 = L * L;
+        const L3 = L * L * L;
+        k[1] = [0, 3 * EI / L3, 0, 0, -3 * EI / L3, 3 * EI / L2];
+        k[2] = [0, 0, 0, 0, 0, 0];
+        k[4] = [0, -3 * EI / L3, 0, 0, 3 * EI / L3, -3 * EI / L2];
+        k[5] = [0, 3 * EI / L2, 0, 0, -3 * EI / L2, 3 * EI / L];
+    } else if (hasRelease2) { // Fixed-Pinned
+        const L2 = L * L;
+        const L3 = L * L * L;
+        k[1] = [0, 3 * EI / L3, 3 * EI / L2, 0, -3 * EI / L3, 0];
+        k[2] = [0, 3 * EI / L2, 3 * EI / L, 0, -3 * EI / L2, 0];
+        k[4] = [0, -3 * EI / L3, -3 * EI / L2, 0, 3 * EI / L3, 0];
+        k[5] = [0, 0, 0, 0, 0, 0];
+    }
+    // Axial part remains unchanged
+    const EAL = E * A / L;
+    k[0][0] = EAL; k[0][3] = -EAL;
+    k[3][0] = -EAL; k[3][3] = EAL;
+
+    return k;
+}
+
 function invertMatrix(A){
     const n=A.length;
     const M=A.map(r=>r.slice());
@@ -582,7 +623,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
     const diags = [];
     frame.beams.forEach((el, idx) => {
         if (el.on === false) {
-            diags.push(null); // Push null for inactive elements
+            diags.push(null);
             return;
         }
 
@@ -599,9 +640,11 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         const E = el.E || frame.E || 210e9;
         const I = el.I || frame.I || 1e-6;
         const A = el.A || frame.A || 0.001;
-        const rel = { kx1: el.kx1, ky1: el.ky1, cz1: el.cz1, kx2: el.kx2, ky2: el.ky2, cz2: el.cz2 };
+        const rel = { cz1: el.cz1, cz2: el.cz2 };
 
-        // This part calculates the FINAL member end forces in the LOCAL coordinate system
+        // --- FIX #1: Use a stiffness matrix consistent with the analysis ---
+        const kLocal_modified = getModifiedStiffness(E, A, I, L, rel);
+
         const T = [
             [c, s, 0, 0, 0, 0], [-s, c, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
             [0, 0, 0, c, s, 0], [0, 0, 0, -s, c, 0], [0, 0, 0, 0, 0, 1]
@@ -610,58 +653,46 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         const dGlobal = dofs.map(i => res.displacements[i] || 0);
         const dLocal = multiplyMatrixVector(T, dGlobal);
 
-        const kLocal = frameElementStiffness(E, A, I, L);
-        
-        // Calculate Fixed-End Forces (FEF) in local coordinates
+        // --- FIX #3: Consistent FEF calculation ---
         const FEF = new Array(6).fill(0);
         (frame.memberLineLoads || []).filter(l => l.beam === idx).forEach(l => {
+            // Simplified for now, but should handle partial loads correctly
             const fe = uniformLineLoadForces(l.wX1 || 0, l.wY1 || 0, L, c, s);
-            for (let i = 0; i < 6; i++) FEF[i] += fe[i];
+            for (let i = 0; i < 6; i++) FEF[i] -= fe[i];
         });
         (frame.memberPointLoads || []).filter(l => l.beam === idx).forEach(l => {
              const a = l.x, b = L - a;
              const P_ax = c * (l.Fx || 0) + s * (l.Fy || 0);
              const P_prp = -s * (l.Fx || 0) + c * (l.Fy || 0);
-             FEF[0] += P_ax * b / L;
-             FEF[3] += P_ax * a / L;
-             FEF[1] += P_prp * b * b * (3 * a + b) / (L * L * L);
-             FEF[2] += P_prp * a * b * b / (L * L);
-             FEF[4] += P_prp * a * a * (3 * b + a) / (L * L * L);
-             FEF[5] += -P_prp * a * a * b / (L * L);
+             FEF[0] -= P_ax * b / L;
+             FEF[3] -= P_ax * a / L;
+             FEF[1] -= P_prp * b * b * (3 * a + b) / (L * L * L);
+             FEF[2] -= P_prp * a * b * b / (L * L);
+             FEF[4] -= P_prp * a * a * (3 * b + a) / (L * L * L);
+             FEF[5] -= -P_prp * a * a * b / (L * L);
         });
 
-        const forcesFromDisp = multiplyMatrixVector(kLocal, dLocal);
-        // Final end forces = forces from displacement + fixed-end forces
-        const fFinalLocal = forcesFromDisp.map((f, i) => f + FEF[i]);
+        const forcesFromDisp = multiplyMatrixVector(kLocal_modified, dLocal);
+        const fFinalLocal = forcesFromDisp.map((f, i) => f - FEF[i]);
 
-        // Note: The problematic manual adjustment for releases is removed.
-        // A correct release formulation would make this unnecessary.
-
-        // These are the forces the element exerts ON THE NODES
+        // --- FIX #2: Correct sign convention for internal forces ---
         const N1 = fFinalLocal[0], V1 = fFinalLocal[1], M1 = fFinalLocal[2];
-        
-        // --- CORRECTED DIAGRAM GENERATION LOGIC ---
+        let normal = N1;
+        let shear = V1;
+        let moment = M1;
 
-        // 1. Define events along the member (loads, evaluation points)
         const events = new Set([0, L]);
-        for (let i = 1; i < divisions; i++) events.add(L * i / divisions);
+        for (let i = 1; i <= divisions; i++) events.add(L * i / divisions);
         const pointLoads = (frame.memberPointLoads || []).filter(l => l.beam === idx);
         pointLoads.forEach(p => events.add(p.x));
         const lineLoads = (frame.memberLineLoads || []).filter(l => l.beam === idx);
         lineLoads.forEach(l => { events.add(l.start || 0); events.add(l.end || L); });
-        const positions = Array.from(events).sort((a, b) => a - b).filter(p => p >= 0 && p <= L);
-        
-        // 2. Set initial INTERNAL forces at x=0 (opposite to nodal forces)
-        // Standard convention: Positive N=tension, Positive M=smiley, Positive V=causes clockwise rotation
-        let normal = -N1;
-        let shear = -V1;
-        let moment = -M1;
+        const positions = Array.from(events).sort((a, b) => a - b).filter(p => p >= 0 && p <= L+1e-9);
 
         const normalArr = [{ x: 0, y: normal }];
         const shearArr = [{ x: 0, y: shear }];
         const momentArr = [{ x: 0, y: moment }];
-        
-        // 3. Integrate along the beam, stepping between events
+
         for (let i = 0; i < positions.length - 1; i++) {
             const x1 = positions[i];
             const x2 = positions[i + 1];
@@ -670,39 +701,34 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
 
             if (dx < 1e-9) continue;
 
-            // Find total distributed load over this segment
             let wX_total = 0, wY_total = 0;
             lineLoads.forEach(l => {
                 const start = l.start || 0;
                 const end = l.end || L;
                 if (midX >= start && midX < end) {
-                    const w_ax = c * (l.wX1 || 0) + s * (l.wY1 || 0); // Assuming uniform for now
+                    const w_ax = c * (l.wX1 || 0) + s * (l.wY1 || 0);
                     const w_prp = -s * (l.wX1 || 0) + c * (l.wY1 || 0);
                     wX_total += w_ax;
                     wY_total += w_prp;
                 }
             });
 
-            // Integrate over the segment dx
             const shear_at_x1 = shear;
-            normal -= wX_total * dx;
-            shear -= wY_total * dx;
-            moment += shear_at_x1 * dx - 0.5 * wY_total * dx * dx;
+            normal += wX_total * dx; // Normal force reduces due to axial load
+            shear += wY_total * dx; // Shear changes due to transverse load
+            moment += shear_at_x1 * dx + 0.5 * wY_total * dx * dx;
 
-            // Add point to diagrams
             normalArr.push({x: x2, y: normal});
             shearArr.push({x: x2, y: shear});
             momentArr.push({x: x2, y: moment});
 
-            // Apply jumps for any point loads at x2
             pointLoads.filter(p => Math.abs(p.x - x2) < 1e-8).forEach(p => {
                 const P_ax = c * (p.Fx || 0) + s * (p.Fy || 0);
                 const P_prp = -s * (p.Fx || 0) + c * (p.Fy || 0);
-                normal -= P_ax;
-                shear -= P_prp;
-                moment += (p.Mz || 0); // Moment jump
-                
-                // Add another point to show the jump
+                normal += P_ax;
+                shear += P_prp;
+                moment -= (p.Mz || 0);
+
                 normalArr.push({x: x2, y: normal});
                 shearArr.push({x: x2, y: shear});
                 momentArr.push({x: x2, y: moment});
