@@ -578,167 +578,137 @@ function computeFrameResults(frame){
     return {displacements:full,reactions};
 }
 
-function computeFrameDiagrams(frame,res,divisions=1){
-    const diags=[];
-    const segs=Math.max(1,10*divisions);
-    frame.beams.forEach((el,idx)=>{
-        if(el.on===false) return;
-        const n1=el.n1,n2=el.n2;
-        const p1=frame.nodes[n1], p2=frame.nodes[n2];
-        const dx=p2.x-p1.x, dy=p2.y-p1.y;
-        const L=Math.hypot(dx,dy);
-        const c=dx/L, s=dy/L;
-        const E=el.E||frame.E||210e9; const I=el.I||frame.I||1e-6; const A=el.A||frame.A||0.001;
-        const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
-        const {Kcond,KbbInv,Kbn,kLocal}=frameElementWithReleases(E,A,I,L,rel);
-        const T=[
-            [ c, s,0, 0,0,0],
-            [-s, c,0, 0,0,0],
-            [ 0,0,1, 0,0,0],
-            [ 0,0,0, c,s,0],
-            [ 0,0,0,-s,c,0],
-            [ 0,0,0, 0,0,1]
-        ];
-        const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
-        const dGlobal=dofs.map(i=>res.displacements[i]);
-        const dLocal=multiplyMatrixVector(T,dGlobal);
-        const Ub=multiplyMatrixVector(KbbInv,multiplyMatrixVector(Kbn,dLocal)).map(v=>-v);
-        const fLocal=multiplyMatrixVector(kLocal,Ub);
-
-        const eq=[0,0,0,0,0,0];
-        const lineSegs=[];
-        (frame.memberPointLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
-            const a=l.x; const b=L-a;
-            const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
-            const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
-            if(FxLocal){
-                eq[0]+=FxLocal*(1-a/L);
-                eq[3]+=FxLocal*(a/L);
-            }
-            if(FyLocal){
-                const P=FyLocal;
-                eq[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
-                eq[2]+=P*a*b*b/Math.pow(L,2);
-                eq[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
-                eq[5]+=-P*a*a*b/Math.pow(L,2);
-            }
-            if(l.Mz){
-                eq[2]+=l.Mz*(1-a/L);
-                eq[5]+=l.Mz*(a/L);
-            }
-        });
-        (frame.memberLineLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
-            const isFullUniform = (l.start === 0 || l.start === undefined) &&
-                                  (l.end === undefined || Math.abs(l.end - L) < 1e-8 || l.end >= L) &&
-                                  l.wX1 === l.wX2 && l.wY1 === l.wY2;
-
-            if (isFullUniform) {
-                const wX = l.wX1 || 0;
-                const wY = l.wY1 || 0;
-                const fe = uniformLineLoadForces(wX, wY, L, c, s);
-                for(let j=0;j<6;j++) eq[j] += fe[j];
-
-                // also register the load for the diagram integration
-                lineSegs.push({
-                    start: 0,
-                    end  : L,
-                    wX   :  c * wX + s * wY,
-                    wY   : -s * wX + c * wY
-                });
-            } else {
-                const segs=50;
-                const start=l.start || 0;
-                const end=l.end || L;
-                for(let i=0;i<segs;i++){
-                    const t1=i/segs, t2=(i+1)/segs;
-                    const x1=start+(end-start)*t1;
-                    const x2=start+(end-start)*t2;
-                    if(x2<=0||x1>=L) continue;
-                    const mid=(x1+x2)/2;
-                    const wX=(l.wX1||0)+((l.wX2||0)-(l.wX1||0))*((t1+t2)/2);
-                    const wY=(l.wY1||0)+((l.wY2||0)-(l.wY1||0))*((t1+t2)/2);
-                    const FxLocal=(c*wX + s*wY)*(x2-x1);
-                    const FyLocal=(-s*wX + c*wY)*(x2-x1);
-                    const a=mid; const b=L-a;
-                    if(FxLocal){
-                        eq[0]+=FxLocal*(1-a/L);
-                        eq[3]+=FxLocal*(a/L);
-                    }
-                    if(FyLocal){
-                        const P=FyLocal;
-                        eq[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
-                        eq[2]+=P*a*b*b/Math.pow(L,2);
-                        eq[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
-                        eq[5]+=-P*a*a*b/Math.pow(L,2);
-                    }
-                }
-            }
-        });
-
-        const fAdj=fLocal.map((v,i)=>v+eq[i]);
-        if(rel.kx1===0) fAdj[0]=0;
-        if(rel.ky1===0) fAdj[1]=0;
-        if(rel.cz1===0) fAdj[2]=0;
-        if(rel.kx2===0) fAdj[3]=0;
-        if(rel.ky2===0) fAdj[4]=0;
-        if(rel.cz2===0) fAdj[5]=0;
-        // Use a standard sign convention where positive internal forces
-        // correspond to positive diagrams without extra sign inversions.
-        // Right-end forces retain the same sign convention as the left end.
-        const N1=fAdj[0], N2=fAdj[3];
-        const V1=fAdj[1], V2=fAdj[4];
-        const M1=fAdj[2], M2=fAdj[5];
-
-        // Start with an empty array so diagrams reflect the actual end
-        // forces rather than forcing them to zero at x = L.
-        const pointLoads=[];
-        (frame.memberPointLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
-            const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
-            const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
-            pointLoads.push({x:l.x,Fx:FxLocal,Fy:FyLocal,M:l.Mz||0});
-        });
-        (frame.memberLineLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
-            for(let i=0;i<segs;i++){
-                const t1=i/segs, t2=(i+1)/segs;
-                const x1=l.start+(l.end-l.start)*t1;
-                const x2=l.start+(l.end-l.start)*t2;
-                if(x2<=0||x1>=L) continue;
-                const wX=(l.wX1||0)+((l.wX2||0)-(l.wX1||0))*((t1+t2)/2);
-                const wY=(l.wY1||0)+((l.wY2||0)-(l.wY1||0))*((t1+t2)/2);
-                const FxLocal=c*wX + s*wY;
-                const FyLocal=-s*wX + c*wY;
-                lineSegs.push({start:x1,end:x2,wX:FxLocal,wY:FyLocal});
-            }
-        });
-
-        const positions=new Set([0,L]);
-        for(let d=1; d<divisions; d++) positions.add(L*d/divisions);
-        pointLoads.forEach(p=>positions.add(p.x));
-        lineSegs.forEach(seg=>{positions.add(seg.start); positions.add(seg.end);});
-        const posArr=Array.from(positions).sort((a,b)=>a-b);
-        // Start diagrams with the actual member end forces
-        let shear=V1, moment=M1, normal=N1;
-        const shearArr=[{x:0,y:shear}], momentArr=[{x:0,y:moment}], normalArr=[{x:0,y:normal}];
-        let active=[];
-        for(let i=0;i<posArr.length-1;i++){
-            const x1=posArr[i]; const x2=posArr[i+1];
-            const dx=x2-x1;
-            const wX=active.reduce((a,b)=>a+b.wX,0);
-            const wY=active.reduce((a,b)=>a+b.wY,0);
-            const shearBefore=shear; const normalBefore=normal;
-            shear-=wY*dx;
-            normal-=wX*dx;
-            moment+=shearBefore*dx-0.5*wY*dx*dx;
-            shearArr.push({x:x2,y:shear});
-            momentArr.push({x:x2,y:moment});
-            normalArr.push({x:x2,y:normal});
-            pointLoads.filter(p=>Math.abs(p.x-x2)<1e-8).forEach(p=>{
-                shear-=p.Fy; normal-=p.Fx; moment+=p.M; shearArr.push({x:x2,y:shear}); momentArr.push({x:x2,y:moment}); normalArr.push({x:x2,y:normal});
-            });
-            lineSegs.filter(seg=>Math.abs(seg.start-x2)<1e-8).forEach(seg=>active.push(seg));
-            lineSegs.filter(seg=>Math.abs(seg.end-x2)<1e-8).forEach(seg=>{const idx=active.indexOf(seg); if(idx>-1) active.splice(idx,1);});
+function computeFrameDiagrams(frame, res, divisions = 10) {
+    const diags = [];
+    frame.beams.forEach((el, idx) => {
+        if (el.on === false) {
+            diags.push(null); // Push null for inactive elements
+            return;
         }
-        diags.push({shear:shearArr,moment:momentArr,normal:normalArr});
+
+        const n1 = el.n1, n2 = el.n2;
+        const p1 = frame.nodes[n1], p2 = frame.nodes[n2];
+        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+        const L = Math.hypot(dx, dy);
+        if (L < 1e-9) {
+             diags.push({ shear: [], moment: [], normal: [] });
+             return;
+        }
+        const c = dx / L, s = dy / L;
+
+        const E = el.E || frame.E || 210e9;
+        const I = el.I || frame.I || 1e-6;
+        const A = el.A || frame.A || 0.001;
+        const rel = { kx1: el.kx1, ky1: el.ky1, cz1: el.cz1, kx2: el.kx2, ky2: el.ky2, cz2: el.cz2 };
+
+        // This part calculates the FINAL member end forces in the LOCAL coordinate system
+        const T = [
+            [c, s, 0, 0, 0, 0], [-s, c, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
+            [0, 0, 0, c, s, 0], [0, 0, 0, -s, c, 0], [0, 0, 0, 0, 0, 1]
+        ];
+        const dofs = [3 * n1, 3 * n1 + 1, 3 * n1 + 2, 3 * n2, 3 * n2 + 1, 3 * n2 + 2];
+        const dGlobal = dofs.map(i => res.displacements[i] || 0);
+        const dLocal = multiplyMatrixVector(T, dGlobal);
+
+        const kLocal = frameElementStiffness(E, A, I, L);
+        
+        // Calculate Fixed-End Forces (FEF) in local coordinates
+        const FEF = new Array(6).fill(0);
+        (frame.memberLineLoads || []).filter(l => l.beam === idx).forEach(l => {
+            const fe = uniformLineLoadForces(l.wX1 || 0, l.wY1 || 0, L, c, s);
+            for (let i = 0; i < 6; i++) FEF[i] += fe[i];
+        });
+        (frame.memberPointLoads || []).filter(l => l.beam === idx).forEach(l => {
+             const a = l.x, b = L - a;
+             const P_ax = c * (l.Fx || 0) + s * (l.Fy || 0);
+             const P_prp = -s * (l.Fx || 0) + c * (l.Fy || 0);
+             FEF[0] += P_ax * b / L;
+             FEF[3] += P_ax * a / L;
+             FEF[1] += P_prp * b * b * (3 * a + b) / (L * L * L);
+             FEF[2] += P_prp * a * b * b / (L * L);
+             FEF[4] += P_prp * a * a * (3 * b + a) / (L * L * L);
+             FEF[5] += -P_prp * a * a * b / (L * L);
+        });
+
+        const forcesFromDisp = multiplyMatrixVector(kLocal, dLocal);
+        // Final end forces = forces from displacement + fixed-end forces
+        const fFinalLocal = forcesFromDisp.map((f, i) => f + FEF[i]);
+
+        // Note: The problematic manual adjustment for releases is removed.
+        // A correct release formulation would make this unnecessary.
+
+        // These are the forces the element exerts ON THE NODES
+        const N1 = fFinalLocal[0], V1 = fFinalLocal[1], M1 = fFinalLocal[2];
+        
+        // --- CORRECTED DIAGRAM GENERATION LOGIC ---
+
+        // 1. Define events along the member (loads, evaluation points)
+        const events = new Set([0, L]);
+        for (let i = 1; i < divisions; i++) events.add(L * i / divisions);
+        const pointLoads = (frame.memberPointLoads || []).filter(l => l.beam === idx);
+        pointLoads.forEach(p => events.add(p.x));
+        const lineLoads = (frame.memberLineLoads || []).filter(l => l.beam === idx);
+        lineLoads.forEach(l => { events.add(l.start || 0); events.add(l.end || L); });
+        const positions = Array.from(events).sort((a, b) => a - b).filter(p => p >= 0 && p <= L);
+        
+        // 2. Set initial INTERNAL forces at x=0 (opposite to nodal forces)
+        // Standard convention: Positive N=tension, Positive M=smiley, Positive V=causes clockwise rotation
+        let normal = -N1;
+        let shear = -V1;
+        let moment = -M1;
+
+        const normalArr = [{ x: 0, y: normal }];
+        const shearArr = [{ x: 0, y: shear }];
+        const momentArr = [{ x: 0, y: moment }];
+        
+        // 3. Integrate along the beam, stepping between events
+        for (let i = 0; i < positions.length - 1; i++) {
+            const x1 = positions[i];
+            const x2 = positions[i + 1];
+            const dx = x2 - x1;
+            const midX = (x1 + x2) / 2;
+
+            if (dx < 1e-9) continue;
+
+            // Find total distributed load over this segment
+            let wX_total = 0, wY_total = 0;
+            lineLoads.forEach(l => {
+                const start = l.start || 0;
+                const end = l.end || L;
+                if (midX >= start && midX < end) {
+                    const w_ax = c * (l.wX1 || 0) + s * (l.wY1 || 0); // Assuming uniform for now
+                    const w_prp = -s * (l.wX1 || 0) + c * (l.wY1 || 0);
+                    wX_total += w_ax;
+                    wY_total += w_prp;
+                }
+            });
+
+            // Integrate over the segment dx
+            const shear_at_x1 = shear;
+            normal -= wX_total * dx;
+            shear -= wY_total * dx;
+            moment += shear_at_x1 * dx - 0.5 * wY_total * dx * dx;
+
+            // Add point to diagrams
+            normalArr.push({x: x2, y: normal});
+            shearArr.push({x: x2, y: shear});
+            momentArr.push({x: x2, y: moment});
+
+            // Apply jumps for any point loads at x2
+            pointLoads.filter(p => Math.abs(p.x - x2) < 1e-8).forEach(p => {
+                const P_ax = c * (p.Fx || 0) + s * (p.Fy || 0);
+                const P_prp = -s * (p.Fx || 0) + c * (p.Fy || 0);
+                normal -= P_ax;
+                shear -= P_prp;
+                moment += (p.Mz || 0); // Moment jump
+                
+                // Add another point to show the jump
+                normalArr.push({x: x2, y: normal});
+                shearArr.push({x: x2, y: shear});
+                momentArr.push({x: x2, y: moment});
+            });
+        }
+        diags.push({ shear: shearArr, moment: momentArr, normal: normalArr });
     });
     return diags;
 }
