@@ -495,27 +495,32 @@ function computeFrameResults(frame){
     const F=new Array(dof).fill(0);
     frame.beams.forEach(el=>{
         if(el.on===false) return;
-        const n1=el.n1,n2=el.n2;
-        const p1=frame.nodes[n1], p2=frame.nodes[n2];
-        const dx=p2.x-p1.x, dy=p2.y-p1.y;
-        const L=Math.hypot(dx,dy);
-        const c=dx/L, s=dy/L;
-        const E=el.E||frame.E||210e9;
-        const I=el.I||frame.I||1e-6;
-        const A=el.A||frame.A||0.001;
-        const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
-        const {Kcond}=frameElementWithReleases(E,A,I,L,rel);
-        const T=[
-            [ c, s,0, 0,0,0],
-            [-s, c,0, 0,0,0],
-            [ 0,0,1, 0,0,0],
-            [ 0,0,0, c,s,0],
-            [ 0,0,0,-s,c,0],
-            [ 0,0,0, 0,0,1]
+        const n1 = el.n1, n2 = el.n2;
+        const p1 = frame.nodes[n1], p2 = frame.nodes[n2];
+        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+        const L = Math.hypot(dx, dy);
+        if (L < 1e-9) return;
+        const c = dx / L, s = dy / L;
+
+        const E = el.E || frame.E || 210e9;
+        const I = el.I || frame.I || 1e-6;
+        const A = el.A || frame.A || 0.001;
+        const rel = { cz1: el.cz1, cz2: el.cz2 };
+
+        // Use the simplified stiffness matrix with releases
+        const kLocal = getModifiedStiffness(E, A, I, L, rel);
+
+        const T = [
+            [ c, s,0, 0,0,0], [-s, c,0, 0,0,0], [ 0,0,1, 0,0,0],
+            [ 0,0,0, c,s,0], [ 0,0,0,-s,c,0], [ 0,0,0, 0,0,1]
         ];
-        const kG=multiplyMatrix(transpose(T),multiplyMatrix(Kcond,T));
-        const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
-        for(let i=0;i<6;i++) for(let j=0;j<6;j++) K[dofs[i]][dofs[j]]+=kG[i][j];
+        const kG = multiplyMatrix(transpose(T), multiplyMatrix(kLocal, T));
+        const dofs = [3*n1, 3*n1+1, 3*n1+2, 3*n2, 3*n2+1, 3*n2+2];
+        for(let i=0;i<6;i++){
+            for(let j=0;j<6;j++){
+                K[dofs[i]][dofs[j]] += kG[i][j];
+            }
+        }
     });
     frame.loads.forEach(l=>{
         if(l.Px) F[3*l.node]+=l.Px;
@@ -658,18 +663,18 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         (frame.memberLineLoads || []).filter(l => l.beam === idx).forEach(l => {
             // Simplified for now, but should handle partial loads correctly
             const fe = uniformLineLoadForces(l.wX1 || 0, l.wY1 || 0, L, c, s);
-            for (let i = 0; i < 6; i++) FEF[i] -= fe[i];
+            for (let i = 0; i < 6; i++) FEF[i] += fe[i];
         });
         (frame.memberPointLoads || []).filter(l => l.beam === idx).forEach(l => {
              const a = l.x, b = L - a;
              const P_ax = c * (l.Fx || 0) + s * (l.Fy || 0);
              const P_prp = -s * (l.Fx || 0) + c * (l.Fy || 0);
-             FEF[0] -= P_ax * b / L;
-             FEF[3] -= P_ax * a / L;
-             FEF[1] -= P_prp * b * b * (3 * a + b) / (L * L * L);
-             FEF[2] -= P_prp * a * b * b / (L * L);
-             FEF[4] -= P_prp * a * a * (3 * b + a) / (L * L * L);
-             FEF[5] -= -P_prp * a * a * b / (L * L);
+             FEF[0] += P_ax * b / L;
+             FEF[3] += P_ax * a / L;
+             FEF[1] += P_prp * b * b * (3 * a + b) / (L * L * L);
+             FEF[2] += P_prp * a * b * b / (L * L);
+             FEF[4] += P_prp * a * a * (3 * b + a) / (L * L * L);
+             FEF[5] += -P_prp * a * a * b / (L * L);
         });
 
         const forcesFromDisp = multiplyMatrixVector(kLocal_modified, dLocal);
@@ -714,9 +719,9 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
             });
 
             const shear_at_x1 = shear;
-            normal += wX_total * dx; // Normal force reduces due to axial load
-            shear += wY_total * dx; // Shear changes due to transverse load
-            moment += shear_at_x1 * dx + 0.5 * wY_total * dx * dx;
+            normal -= wX_total * dx;
+            shear -= wY_total * dx;
+            moment += shear_at_x1 * dx - 0.5 * wY_total * dx * dx;
 
             normalArr.push({x: x2, y: normal});
             shearArr.push({x: x2, y: shear});
@@ -725,9 +730,9 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
             pointLoads.filter(p => Math.abs(p.x - x2) < 1e-8).forEach(p => {
                 const P_ax = c * (p.Fx || 0) + s * (p.Fy || 0);
                 const P_prp = -s * (p.Fx || 0) + c * (p.Fy || 0);
-                normal += P_ax;
-                shear += P_prp;
-                moment -= (p.Mz || 0);
+                normal -= P_ax;
+                shear -= P_prp;
+                moment += (p.Mz || 0);
 
                 normalArr.push({x: x2, y: normal});
                 shearArr.push({x: x2, y: shear});
