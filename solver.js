@@ -606,6 +606,7 @@ function computeFrameDiagrams(frame,res,divisions=1){
         const fLocal=multiplyMatrixVector(kLocal,Ub);
 
         const eq=[0,0,0,0,0,0];
+        const lineSegs=[];
         (frame.memberPointLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
             const a=l.x; const b=L-a;
             const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
@@ -636,6 +637,14 @@ function computeFrameDiagrams(frame,res,divisions=1){
                 const wY = l.wY1 || 0;
                 const fe = uniformLineLoadForces(wX, wY, L, c, s);
                 for(let j=0;j<6;j++) eq[j] += fe[j];
+
+                // also register the load for the diagram integration
+                lineSegs.push({
+                    start: 0,
+                    end  : L,
+                    wX   :  c * wX + s * wY,
+                    wY   : -s * wX + c * wY
+                });
             } else {
                 const segs=50;
                 const start=l.start || 0;
@@ -688,7 +697,6 @@ function computeFrameDiagrams(frame,res,divisions=1){
             const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
             pointLoads.push({x:l.x,Fx:FxLocal,Fy:FyLocal,M:l.Mz||0});
         });
-        const lineSegs=[];
         (frame.memberLineLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
             for(let i=0;i<segs;i++){
                 const t1=i/segs, t2=(i+1)/segs;
@@ -725,7 +733,7 @@ function computeFrameDiagrams(frame,res,divisions=1){
             momentArr.push({x:x2,y:moment});
             normalArr.push({x:x2,y:normal});
             pointLoads.filter(p=>Math.abs(p.x-x2)<1e-8).forEach(p=>{
-                shear-=p.Fy; normal-=p.Fx; moment-=p.M; shearArr.push({x:x2,y:shear}); momentArr.push({x:x2,y:moment}); normalArr.push({x:x2,y:normal});
+                shear-=p.Fy; normal-=p.Fx; moment+=p.M; shearArr.push({x:x2,y:shear}); momentArr.push({x:x2,y:moment}); normalArr.push({x:x2,y:normal});
             });
             lineSegs.filter(seg=>Math.abs(seg.start-x2)<1e-8).forEach(seg=>active.push(seg));
             lineSegs.filter(seg=>Math.abs(seg.end-x2)<1e-8).forEach(seg=>{const idx=active.indexOf(seg); if(idx>-1) active.splice(idx,1);});
