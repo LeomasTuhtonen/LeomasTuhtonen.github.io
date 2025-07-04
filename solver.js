@@ -64,6 +64,19 @@ function multiplyMatrix(A,B){
     return r;
 }
 
+function uniformLineLoadForces(wX, wY, L, c, s){
+    const w_ax = c * wX + s * wY;
+    const w_prp = -s * wX + c * wY;
+    return [
+        w_ax * L / 2,
+        w_prp * L / 2,
+        w_prp * L * L / 12,
+        w_ax * L / 2,
+        w_prp * L / 2,
+        -w_prp * L * L / 12
+    ];
+}
+
 let crossSectionMap = {};
 if (typeof require !== 'undefined' && typeof window === 'undefined') {
     try {
@@ -495,7 +508,7 @@ function computeFrameResults(frame){
             local[2]+=l.Mz*(1-a/L);
             local[5]+=l.Mz*(a/L);
         }
-        const T=[[ c,-s,0,0,0,0],[ s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c,-s,0],[0,0,0, s, c,0],[0,0,0,0,0,1]];
+        const T=[[ c, s,0,0,0,0],[-s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c, s,0],[0,0,0,-s, c,0],[0,0,0,0,0,1]];
         const gl=multiplyMatrixVector(transpose(T),local);
         const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
         for(let i=0;i<6;i++) F[dofs[i]]+=gl[i];
@@ -510,25 +523,14 @@ function computeFrameResults(frame){
         const c=dx/L, s=dy/L;
         const local=[0,0,0,0,0,0];
         const isFullUniform = (l.start === 0 || l.start === undefined) &&
-                              (l.end >= L || l.end === undefined) &&
+                              (l.end === undefined || Math.abs(l.end - L) < 1e-8 || l.end >= L) &&
                               l.wX1 === l.wX2 && l.wY1 === l.wY2;
 
         if (isFullUniform) {
             const wX = l.wX1 || 0;
             const wY = l.wY1 || 0;
-            const w_ax = c * wX + s * wY;
-            const w_prp = -s * wX + c * wY;
-
-            if (w_ax !== 0) {
-                local[0] += w_ax * L / 2;
-                local[3] += w_ax * L / 2;
-            }
-            if (w_prp !== 0) {
-                local[1] += w_prp * L / 2;
-                local[2] += w_prp * L * L / 12;
-                local[4] += w_prp * L / 2;
-                local[5] += -w_prp * L * L / 12;
-            }
+            const fe = uniformLineLoadForces(wX, wY, L, c, s);
+            for(let j=0;j<6;j++) local[j] += fe[j];
         } else {
             const segs=50;
             const start=l.start || 0;
@@ -539,8 +541,8 @@ function computeFrameResults(frame){
                 const x2=start + (end-start)*t2;
                 if(x2<=0||x1>=L) continue;
                 const mid=(x1+x2)/2;
-                const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
-                const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
+                const wX=(l.wX1||0)+((l.wX2||0)-(l.wX1||0))*((t1+t2)/2);
+                const wY=(l.wY1||0)+((l.wY2||0)-(l.wY1||0))*((t1+t2)/2);
                 const FxLocal=(c*wX + s*wY)*(x2-x1);
                 const FyLocal=(-s*wX + c*wY)*(x2-x1);
                 const a=mid; const b=L-a;
@@ -557,7 +559,7 @@ function computeFrameResults(frame){
                 }
             }
         }
-        const T=[[ c,-s,0,0,0,0],[ s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c,-s,0],[0,0,0, s, c,0],[0,0,0,0,0,1]];
+        const T=[[ c, s,0,0,0,0],[-s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c, s,0],[0,0,0,-s, c,0],[0,0,0,0,0,1]];
         const gl=multiplyMatrixVector(transpose(T),local);
         const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
         for(let j=0;j<6;j++) F[dofs[j]]+=gl[j];
@@ -626,25 +628,14 @@ function computeFrameDiagrams(frame,res,divisions=1){
         });
         (frame.memberLineLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
             const isFullUniform = (l.start === 0 || l.start === undefined) &&
-                                  (l.end >= L || l.end === undefined) &&
+                                  (l.end === undefined || Math.abs(l.end - L) < 1e-8 || l.end >= L) &&
                                   l.wX1 === l.wX2 && l.wY1 === l.wY2;
 
             if (isFullUniform) {
                 const wX = l.wX1 || 0;
                 const wY = l.wY1 || 0;
-                const w_ax = c * wX + s * wY;
-                const w_prp = -s * wX + c * wY;
-
-                if (w_ax !== 0) {
-                    eq[0] += w_ax * L / 2;
-                    eq[3] += w_ax * L / 2;
-                }
-                if (w_prp !== 0) {
-                    eq[1] += w_prp * L / 2;
-                    eq[2] += w_prp * L * L / 12;
-                    eq[4] += w_prp * L / 2;
-                    eq[5] += -w_prp * L * L / 12;
-                }
+                const fe = uniformLineLoadForces(wX, wY, L, c, s);
+                for(let j=0;j<6;j++) eq[j] += fe[j];
             } else {
                 const segs=50;
                 const start=l.start || 0;
@@ -655,8 +646,8 @@ function computeFrameDiagrams(frame,res,divisions=1){
                     const x2=start+(end-start)*t2;
                     if(x2<=0||x1>=L) continue;
                     const mid=(x1+x2)/2;
-                    const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
-                    const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
+                    const wX=(l.wX1||0)+((l.wX2||0)-(l.wX1||0))*((t1+t2)/2);
+                    const wY=(l.wY1||0)+((l.wY2||0)-(l.wY1||0))*((t1+t2)/2);
                     const FxLocal=(c*wX + s*wY)*(x2-x1);
                     const FyLocal=(-s*wX + c*wY)*(x2-x1);
                     const a=mid; const b=L-a;
@@ -702,8 +693,8 @@ function computeFrameDiagrams(frame,res,divisions=1){
                 const x1=l.start+(l.end-l.start)*t1;
                 const x2=l.start+(l.end-l.start)*t2;
                 if(x2<=0||x1>=L) continue;
-                const wX=l.wX1+(l.wX2-l.wX1)*((t1+t2)/2);
-                const wY=l.wY1+(l.wY2-l.wY1)*((t1+t2)/2);
+                const wX=(l.wX1||0)+((l.wX2||0)-(l.wX1||0))*((t1+t2)/2);
+                const wY=(l.wY1||0)+((l.wY2||0)-(l.wY1||0))*((t1+t2)/2);
                 const FxLocal=c*wX + s*wY;
                 const FyLocal=-s*wX + c*wY;
                 lineSegs.push({start:x1,end:x2,wX:FxLocal,wY:FyLocal});

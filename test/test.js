@@ -124,3 +124,18 @@ function close(actual, expected, tol, msg){
   const startMoment=diags[0].moment[0].y;
   assert(Math.abs(startMoment) < 1e-6, 'moment at hinge not zero');
 })();
+
+// Uniform load on inclined member
+(function testInclinedUniform(){
+  const L = Math.sqrt(2);
+  const frame={
+    nodes:[{x:0,y:0},{x:1,y:1}],
+    beams:[{n1:0,n2:1}],
+    supports:[{node:0,fixX:true,fixY:true,fixRot:true},{node:1,fixX:true,fixY:true,fixRot:true}],
+    loads:[],
+    memberLineLoads:[{beam:0,start:0,end:L,wY1:-1,wY2:-1}]
+  };
+  const res=computeFrameResults(frame);
+  close(res.reactions[1], L/2, 1e-6, 'left vertical reaction');
+  close(res.reactions[4], L/2, 1e-6, 'right vertical reaction');
+})();
