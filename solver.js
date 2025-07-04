@@ -683,12 +683,13 @@ function computeFrameDiagrams(frame,res,divisions=1){
         if(rel.ky2===0) fAdj[4]=0;
         if(rel.cz2===0) fAdj[5]=0;
         // Use a standard sign convention where positive internal forces
-        // correspond to positive diagrams without extra sign inversions
-        const N1=fAdj[0], N2=-fAdj[3];
-        const V1=fAdj[1], V2=-fAdj[4];
-        const M1=fAdj[2], M2=-fAdj[5];
+        // correspond to positive diagrams without extra sign inversions.
+        // Right-end forces retain the same sign convention as the left end.
+        const N1=fAdj[0], N2=fAdj[3];
+        const V1=fAdj[1], V2=fAdj[4];
+        const M1=fAdj[2], M2=fAdj[5];
 
-        const pointLoads=[];
+        const pointLoads=[{x:L,Fx:-N2,Fy:-V2,M:-M2}];
         (frame.memberPointLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
             const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
             const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
