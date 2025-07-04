@@ -680,7 +680,9 @@ function computeFrameDiagrams(frame,res,divisions=1){
         const V1=fAdj[1], V2=fAdj[4];
         const M1=fAdj[2], M2=fAdj[5];
 
-        const pointLoads=[{x:L,Fx:-N2,Fy:-V2,M:-M2}];
+        // Start with an empty array so diagrams reflect the actual end
+        // forces rather than forcing them to zero at x = L.
+        const pointLoads=[];
         (frame.memberPointLoads||[]).filter(l=>l.beam===idx).forEach(l=>{
             const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
             const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
