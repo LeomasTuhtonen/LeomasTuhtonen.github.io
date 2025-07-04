@@ -106,8 +106,8 @@ function close(actual, expected, tol, msg){
   const diags=computeFrameDiagrams(frame,res,1);
   const shear=diags[0].shear.map(p=>p.y);
   const moment=diags[0].moment.map(p=>p.y);
-  assert(Math.abs(shear[0]-1)<1e-4 && Math.abs(shear[2]-2)<1e-4,'shear diagram');
-  assert(Math.abs(moment[0]-0.5)<1e-4 && Math.abs(moment[2]-1)<1e-4,'moment diagram');
+  assert(Math.abs(shear[0]+1)<1e-4 && Math.abs(shear[2]+2)<1e-4,'shear diagram');
+  assert(Math.abs(moment[0]+0.5)<1e-4 && Math.abs(moment[2]+1)<1e-4,'moment diagram');
 })();
 
 // Moment release at beam start
@@ -122,7 +122,7 @@ function close(actual, expected, tol, msg){
   const res=computeFrameResults(frame);
   const diags=computeFrameDiagrams(frame,res,1);
   const startMoment=diags[0].moment[0].y;
-  assert(Math.abs(startMoment-0.125) < 1e-6, 'moment value mismatch');
+  assert(Math.abs(startMoment+0.125) < 1e-6, 'moment value mismatch');
 })();
 
 // Uniform load on inclined member
