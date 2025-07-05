@@ -683,7 +683,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         // --- FIX #2: Correct sign convention for internal forces ---
         const N1 = fFinalLocal[0], V1 = fFinalLocal[1], M1 = fFinalLocal[2];
         let normal = N1;
-        let shear = V1;
+        let shear = -V1;       // diagram sign (+ down)
         let moment = M1;
 
         const events = new Set([0, L]);
