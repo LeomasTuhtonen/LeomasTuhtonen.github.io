@@ -64,17 +64,35 @@ function multiplyMatrix(A,B){
     return r;
 }
 
-function uniformLineLoadForces(wX, wY, L, c, s){
-    const w_ax = c * wX + s * wY;
-    const w_prp = -s * wX + c * wY;
-    return [
-        w_ax * L / 2,
-        w_prp * L / 2,
-        w_prp * L * L / 12,
-        w_ax * L / 2,
-        w_prp * L / 2,
-        -w_prp * L * L / 12
-    ];
+
+function trapezoidalLineLoadForces(wX1, wY1, wX2, wY2, L, start=0, end=L, c, s){
+    if(end <= start) return [0,0,0,0,0,0];
+    start = Math.max(0,start); end = Math.min(L,end);
+    const wl_ax1 = c*(wX1||0) + s*(wY1||0);
+    const wl_prp1 = -s*(wX1||0) + c*(wY1||0);
+    const wl_ax2 = c*(wX2||0) + s*(wY2||0);
+    const wl_prp2 = -s*(wX2||0) + c*(wY2||0);
+    const l = end - start;
+    const F = (x,p)=>Math.pow(x,p+1)/(p+1);
+    const intLin = (a,b,wa,wb,n)=>{
+        const base = wa*(F(b,n)-F(a,n));
+        const m = (wb-wa)/(b-a);
+        const part = (F(b,n+1)-F(a,n+1)) - a*(F(b,n)-F(a,n));
+        return base + m*part;
+    };
+    const I0_ax=intLin(start,end,wl_ax1,wl_ax2,0);
+    const I1_ax=intLin(start,end,wl_ax1,wl_ax2,1);
+    const Fx1=I0_ax - I1_ax/L;
+    const Fx2=I1_ax/L;
+    const I0=intLin(start,end,wl_prp1,wl_prp2,0);
+    const I1=intLin(start,end,wl_prp1,wl_prp2,1);
+    const I2=intLin(start,end,wl_prp1,wl_prp2,2);
+    const I3=intLin(start,end,wl_prp1,wl_prp2,3);
+    const Fy1=I0 - 3*I2/(L*L) + 2*I3/(L*L*L);
+    const Mz1=I1 - 2*I2/L + I3/(L*L);
+    const Fy2=3*I2/(L*L) - 2*I3/(L*L*L);
+    const Mz2=-I2/L + I3/(L*L);
+    return [Fx1,Fy1,Mz1,Fx2,Fy2,Mz2];
 }
 
 let crossSectionMap = {};
@@ -567,44 +585,10 @@ function computeFrameResults(frame){
         const dx=p2.x-p1.x, dy=p2.y-p1.y;
         const L=Math.hypot(dx,dy); if(L===0) return;
         const c=dx/L, s=dy/L;
-        const local=[0,0,0,0,0,0];
-        const isFullUniform = (l.start === 0 || l.start === undefined) &&
-                              (l.end === undefined || Math.abs(l.end - L) < 1e-8 || l.end >= L) &&
-                              l.wX1 === l.wX2 && l.wY1 === l.wY2;
-
-        if (isFullUniform) {
-            const wX = l.wX1 || 0;
-            const wY = l.wY1 || 0;
-            const fe = uniformLineLoadForces(wX, wY, L, c, s);
-            for(let j=0;j<6;j++) local[j] += fe[j];
-        } else {
-            const segs=50;
-            const start=l.start || 0;
-            const end=l.end || L;
-            for(let i=0;i<segs;i++){
-                const t1=i/segs, t2=(i+1)/segs;
-                const x1=start + (end-start)*t1;
-                const x2=start + (end-start)*t2;
-                if(x2<=0||x1>=L) continue;
-                const mid=(x1+x2)/2;
-                const wX=(l.wX1||0)+((l.wX2||0)-(l.wX1||0))*((t1+t2)/2);
-                const wY=(l.wY1||0)+((l.wY2||0)-(l.wY1||0))*((t1+t2)/2);
-                const FxLocal=(c*wX + s*wY)*(x2-x1);
-                const FyLocal=(-s*wX + c*wY)*(x2-x1);
-                const a=mid; const b=L-a;
-                if(FxLocal){
-                    local[0]+=FxLocal*(1-a/L);
-                    local[3]+=FxLocal*(a/L);
-                }
-                if(FyLocal){
-                    const P=FyLocal;
-                    local[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
-                    local[2]+=P*a*b*b/Math.pow(L,2);
-                    local[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
-                    local[5]+=-P*a*a*b/Math.pow(L,2);
-                }
-            }
-        }
+        const start=l.start===undefined?0:l.start;
+        const end=l.end===undefined?L:l.end;
+        const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
+        const local=fe;
         const T=[[ c, s,0,0,0,0],[-s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c, s,0],[0,0,0,-s, c,0],[0,0,0,0,0,1]];
         const gl=multiplyMatrixVector(transpose(T),local);
         const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
@@ -661,8 +645,9 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         // --- FIX #3: Consistent FEF calculation ---
         const FEF = new Array(6).fill(0);
         (frame.memberLineLoads || []).filter(l => l.beam === idx).forEach(l => {
-            // Simplified for now, but should handle partial loads correctly
-            const fe = uniformLineLoadForces(l.wX1 || 0, l.wY1 || 0, L, c, s);
+            const start=l.start===undefined?0:l.start;
+            const end=l.end===undefined?L:l.end;
+            const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
             for (let i = 0; i < 6; i++) FEF[i] += fe[i];
         });
         (frame.memberPointLoads || []).filter(l => l.beam === idx).forEach(l => {
