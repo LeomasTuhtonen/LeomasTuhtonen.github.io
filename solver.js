@@ -739,11 +739,9 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
                 momentArr.push({x: x2, y: moment});
             });
         }
-        // Flip shear and moment so downward shear is negative and sagging
-        // moment is positive, matching the beam diagram convention.
-        const shearAdj = shearArr.map(p => ({ x: p.x, y: -p.y }));
-        const momentAdj = momentArr.map(p => ({ x: p.x, y: -p.y }));
-        diags.push({ shear: shearAdj, moment: momentAdj, normal: normalArr });
+        // Shear and moment arrays are already in the conventional sign
+        // orientation, so they can be pushed directly without adjustment.
+        diags.push({ shear: shearArr, moment: momentArr, normal: normalArr });
     });
     return diags;
 }
