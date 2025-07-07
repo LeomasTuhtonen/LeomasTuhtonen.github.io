@@ -417,47 +417,7 @@ function frameElementStiffness(E,A,I,L){
     ];
 }
 
-// Helper function to create the modified stiffness matrix for diagrams
-// This is a more standard and direct way to handle releases than the complex 12x12 method
-function getModifiedStiffness(E, A, I, L, rel) {
-    let k = frameElementStiffness(E, A, I, L);
-    const hasRelease1 = rel && rel.cz1 === 0;
-    const hasRelease2 = rel && rel.cz2 === 0;
-
-    if (!hasRelease1 && !hasRelease2) {
-        return k; // Return original if no releases
-    }
-
-    // Modify for moment releases (most common case)
-    const EI = E * I;
-    if (hasRelease1 && hasRelease2) { // Pinned-Pinned
-        k[1] = [0, 0, 0, 0, 0, 0];
-        k[2] = [0, 0, 0, 0, 0, 0];
-        k[4] = [0, 0, 0, 0, 0, 0];
-        k[5] = [0, 0, 0, 0, 0, 0];
-    } else if (hasRelease1) { // Pinned-Fixed
-        const L2 = L * L;
-        const L3 = L * L * L;
-        k[1] = [0, 3 * EI / L3, 0, 0, -3 * EI / L3, 3 * EI / L2];
-        k[2] = [0, 0, 0, 0, 0, 0];
-        k[4] = [0, -3 * EI / L3, 0, 0, 3 * EI / L3, -3 * EI / L2];
-        k[5] = [0, 3 * EI / L2, 0, 0, -3 * EI / L2, 3 * EI / L];
-    } else if (hasRelease2) { // Fixed-Pinned
-        const L2 = L * L;
-        const L3 = L * L * L;
-        k[1] = [0, 3 * EI / L3, 3 * EI / L2, 0, -3 * EI / L3, 0];
-        k[2] = [0, 3 * EI / L2, 3 * EI / L, 0, -3 * EI / L2, 0];
-        k[4] = [0, -3 * EI / L3, -3 * EI / L2, 0, 3 * EI / L3, 0];
-        k[5] = [0, 0, 0, 0, 0, 0];
-    }
-    // Axial part remains unchanged
-    const EAL = E * A / L;
-    k[0][0] = EAL; k[0][3] = -EAL;
-    k[3][0] = -EAL; k[3][3] = EAL;
-
-    return k;
-}
-
+// Matrix inversion helper used by frameElementWithReleases
 function invertMatrix(A){
     const n=A.length;
     const M=A.map(r=>r.slice());
@@ -525,8 +485,9 @@ function computeFrameResults(frame){
         const A = el.A || frame.A || 0.001;
         const rel = { cz1: el.cz1, cz2: el.cz2 };
 
-        // Use the simplified stiffness matrix with releases
-        const kLocal = getModifiedStiffness(E, A, I, L, rel);
+        // Use condensed element stiffness matrix with releases
+        const {Kcond} = frameElementWithReleases(E, A, I, L, rel);
+        const kLocal = Kcond;
 
         const T = [
             [ c, s,0, 0,0,0], [-s, c,0, 0,0,0], [ 0,0,1, 0,0,0],
@@ -631,8 +592,9 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         const A = el.A || frame.A || 0.001;
         const rel = { cz1: el.cz1, cz2: el.cz2 };
 
-        // --- FIX #1: Use a stiffness matrix consistent with the analysis ---
-        const kLocal_modified = getModifiedStiffness(E, A, I, L, rel);
+        // Use the same condensed stiffness as in the analysis
+        const {Kcond} = frameElementWithReleases(E, A, I, L, rel);
+        const kLocal_modified = Kcond;
 
         const T = [
             [c, s, 0, 0, 0, 0], [-s, c, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
