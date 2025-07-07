@@ -95,6 +95,40 @@ function trapezoidalLineLoadForces(wX1, wY1, wX2, wY2, L, start=0, end=L, c, s){
     return [Fx1,Fy1,Mz1,Fx2,Fy2,Mz2];
 }
 
+/**
+ * Calculates the Fixed-End Forces for a point load on a beam member.
+ * @param {number} P_ax - Axial force in the local x-direction.
+ * @param {number} P_prp - Perpendicular force in the local y-direction.
+ * @param {number} Mz - Concentrated moment in the local z-direction (CCW is positive).
+ * @param {number} L - Length of the member.
+ * @param {number} a - Distance from the start of the member to the point load.
+ * @returns {number[]} A 6-element array of local fixed-end forces [Fx1, Fy1, Mz1, Fx2, Fy2, Mz2].
+ */
+function pointLoadFEF(P_ax, P_prp, Mz, L, a){
+    if(L < 1e-9) return [0,0,0,0,0,0];
+    const b=L-a;
+    const L2=L*L;
+    const L3=L*L*L;
+    const fef=[0,0,0,0,0,0];
+    if(Math.abs(P_ax)>1e-9){
+        fef[0]+=P_ax*b/L;
+        fef[3]+=P_ax*a/L;
+    }
+    if(Math.abs(P_prp)>1e-9){
+        fef[1]+=P_prp*b*b*(3*a+b)/L3;
+        fef[2]+=P_prp*a*b*b/L2;
+        fef[4]+=P_prp*a*a*(3*b+a)/L3;
+        fef[5]-=P_prp*a*a*b/L2;
+    }
+    if(Math.abs(Mz)>1e-9){
+        fef[1]-=6*Mz*a*b/L3;
+        fef[2]+=Mz*b/L2*(b-2*a);
+        fef[4]+=6*Mz*a*b/L3;
+        fef[5]+=Mz*a/L2*(a-2*b);
+    }
+    return fef;
+}
+
 let crossSectionMap = {};
 if (typeof require !== 'undefined' && typeof window === 'undefined') {
     try {
@@ -512,27 +546,15 @@ function computeFrameResults(frame){
         const n1=el.n1,n2=el.n2;
         const p1=frame.nodes[n1], p2=frame.nodes[n2];
         const dx=p2.x-p1.x, dy=p2.y-p1.y;
-        const L=Math.hypot(dx,dy); if(L===0) return;
+        const L=Math.hypot(dx,dy); if(L<1e-9) return;
         const c=dx/L, s=dy/L;
-        const a=l.x; const b=L-a;
-        const local=[0,0,0,0,0,0];
+
         const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
         const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
-        if(FxLocal){
-            local[0]+=FxLocal*(1-a/L);
-            local[3]+=FxLocal*(a/L);
-        }
-        if(FyLocal){
-            const P=FyLocal;
-            local[1]+=P*b*b*(3*a+b)/Math.pow(L,3);
-            local[2]+=P*a*b*b/Math.pow(L,2);
-            local[4]+=P*a*a*(3*b+a)/Math.pow(L,3);
-            local[5]+=-P*a*a*b/Math.pow(L,2);
-        }
-        if(l.Mz){
-            local[2]+=l.Mz*(1-a/L);
-            local[5]+=l.Mz*(a/L);
-        }
+        const MzLocal=l.Mz||0;
+
+        const local=pointLoadFEF(FxLocal,FyLocal,MzLocal,L,l.x);
+
         const T=[[ c, s,0,0,0,0],[-s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c, s,0],[0,0,0,-s, c,0],[0,0,0,0,0,1]];
         const gl=multiplyMatrixVector(transpose(T),local);
         const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
@@ -613,15 +635,13 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
             for (let i = 0; i < 6; i++) FEF[i] += fe[i];
         });
         (frame.memberPointLoads || []).filter(l => l.beam === idx).forEach(l => {
-             const a = l.x, b = L - a;
-             const P_ax = c * (l.Fx || 0) + s * (l.Fy || 0);
-             const P_prp = -s * (l.Fx || 0) + c * (l.Fy || 0);
-             FEF[0] += P_ax * b / L;
-             FEF[3] += P_ax * a / L;
-             FEF[1] += P_prp * b * b * (3 * a + b) / (L * L * L);
-             FEF[2] += P_prp * a * b * b / (L * L);
-             FEF[4] += P_prp * a * a * (3 * b + a) / (L * L * L);
-             FEF[5] += -P_prp * a * a * b / (L * L);
+            const FxLocal = c * (l.Fx || 0) + s * (l.Fy || 0);
+            const FyLocal = -s * (l.Fx || 0) + c * (l.Fy || 0);
+            const MzLocal = l.Mz || 0;
+            const fe = pointLoadFEF(FxLocal, FyLocal, MzLocal, L, l.x);
+            for (let i = 0; i < 6; i++) {
+                FEF[i] += fe[i];
+            }
         });
 
         const forcesFromDisp = multiplyMatrixVector(kLocal_modified, dLocal);
