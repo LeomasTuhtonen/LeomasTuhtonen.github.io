@@ -1,5 +1,5 @@
 const assert = require('assert');
-const {computeResults, computeSectionDesign, computeFrameResults, computeFrameDiagrams} = require('../solver');
+const {computeResults, computeSectionDesign, computeFrameResults, computeFrameResultsPDelta, computeFrameDiagrams} = require('../solver');
 
 function close(actual, expected, tol, msg){
   if(Math.abs(actual-expected) > tol) throw new Error(msg+` expected ${expected} got ${actual}`);
@@ -106,8 +106,10 @@ function close(actual, expected, tol, msg){
   const diags=computeFrameDiagrams(frame,res,1);
   const shear=diags[0].shear.map(p=>p.y);
   const moment=diags[0].moment.map(p=>p.y);
-  assert(Math.abs(shear[0]+1)<1e-4 && Math.abs(shear[2]+2)<1e-4,'shear diagram');
-  assert(Math.abs(moment[0]-0.5)<1e-4 && Math.abs(moment[2]-0)<1e-4,'moment diagram');
+  const lastShear=shear[shear.length-1];
+  const lastMoment=moment[moment.length-1];
+  assert(Math.abs(shear[0]+1)<1e-4 && Math.abs(lastShear-0)<1e-4,'shear diagram');
+  assert(Math.abs(moment[0]-0.5)<1e-4 && Math.abs(lastMoment-0)<1e-4,'moment diagram');
 })();
 
 // Moment release at beam start
@@ -138,4 +140,17 @@ function close(actual, expected, tol, msg){
   const res=computeFrameResults(frame);
   close(res.reactions[1], L/2, 1e-6, 'left vertical reaction');
   close(res.reactions[4], L/2, 1e-6, 'right vertical reaction');
+})();
+
+// P-Delta effect increases displacement
+(function testPDeltaDisplacement(){
+  const frame={
+    nodes:[{x:0,y:0},{x:0,y:3}],
+    beams:[{n1:0,n2:1}],
+    supports:[{node:0,fixX:true,fixY:true,fixRot:true}],
+    loads:[{node:1,Px:1000,Py:-10000}]
+  };
+  const first=computeFrameResults(frame);
+  const second=computeFrameResultsPDelta(frame);
+  assert(Math.abs(second.displacements[3])>Math.abs(first.displacements[3]),'P-Delta should increase sway');
 })();

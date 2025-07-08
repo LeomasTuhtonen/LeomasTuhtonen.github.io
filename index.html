@@ -331,6 +331,11 @@
                         <option value="shear">Shear force</option>
                         <option value="normal">Normal force</option>
                     </select>
+                    <label style="margin-left:10px;">Analysis</label>
+                    <select id="frameAnalysisType" onchange="solveFrame()">
+                        <option value="first">1st order analysis</option>
+                        <option value="pdelta">P-Delta</option>
+                    </select>
                 </div>
                 <canvas id="frameCanvas" width="650" height="650" style="border:1px solid #ccc; width:100%; height:100%;"></canvas>
             </div>
@@ -1734,7 +1739,8 @@ function solveFrame(){
     const mPoint=frameState.memberPointLoads.map(l=>({beam:l.beam,x:l.x,Fx:(l.Fx||0)*1000,Fy:(l.Fy||0)*1000,Mz:(l.Mz||0)*1000}));
     const mLine=frameState.memberLineLoads.map(l=>({beam:l.beam,start:l.start,end:l.end,wX1:(l.wX1||0)*1000,wX2:(l.wX2||0)*1000,wY1:(l.wY1||0)*1000,wY2:(l.wY2||0)*1000}));
     const frame={nodes:frameState.nodes,beams,supports,loads,memberPointLoads:mPoint,memberLineLoads:mLine,E:state.E};
-    const res=computeFrameResults(frame);
+    const analysis=document.getElementById('frameAnalysisType')?.value||'first';
+    const res=analysis==='pdelta'?computeFrameResultsPDelta(frame):computeFrameResults(frame);
     if(!res) return;
     updateFrameReactions(res);
     updateFrameWarning();
