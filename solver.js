@@ -417,6 +417,19 @@ function frameElementStiffness(E,A,I,L){
     ];
 }
 
+function frameElementGeoStiffness(P,L){
+    const g = -P / (30 * L);
+    const L2 = L * L;
+    return [
+        [0,     0,      0, 0,     0,      0],
+        [0,  36*g,  3*L*g, 0, -36*g,  3*L*g],
+        [0,  3*L*g, 4*L2*g,0, -3*L*g, -L2*g],
+        [0,     0,      0, 0,     0,      0],
+        [0, -36*g, -3*L*g,0,  36*g, -3*L*g],
+        [0,  3*L*g, -L2*g,0, -3*L*g, 4*L2*g]
+    ];
+}
+
 // Matrix inversion helper used by frameElementWithReleases
 function invertMatrix(A){
     const n=A.length;
@@ -438,8 +451,12 @@ function invertMatrix(A){
     return I;
 }
 
-function frameElementWithReleases(E,A,I,L,rel){
+function frameElementWithReleases(E,A,I,L,rel,P){
     const kLocal=frameElementStiffness(E,A,I,L);
+    if(P){
+        const kg = frameElementGeoStiffness(P,L);
+        for(let i=0;i<6;i++) for(let j=0;j<6;j++) kLocal[i][j] += kg[i][j];
+    }
     const INF=1e12;
     const kx1=rel?.kx1===undefined?INF:(rel.kx1<0?INF:rel.kx1);
     const ky1=rel?.ky1===undefined?INF:(rel.ky1<0?INF:rel.ky1);
@@ -466,12 +483,12 @@ function frameElementWithReleases(E,A,I,L,rel){
     return {Kcond,KbbInv,Kbn,kLocal};
 }
 
-function computeFrameResults(frame){
+function computeFrameResults(frame, axialForces){
     const n=frame.nodes.length; if(n===0) return null;
     const dof=3*n;
     const K=Array.from({length:dof},()=>new Array(dof).fill(0));
     const F=new Array(dof).fill(0);
-    frame.beams.forEach(el=>{
+    frame.beams.forEach((el, idx)=>{
         if(el.on===false) return;
         const n1 = el.n1, n2 = el.n2;
         const p1 = frame.nodes[n1], p2 = frame.nodes[n2];
@@ -486,7 +503,8 @@ function computeFrameResults(frame){
         const rel = { cz1: el.cz1, cz2: el.cz2 };
 
         // Use condensed element stiffness matrix with releases
-        const {Kcond} = frameElementWithReleases(E, A, I, L, rel);
+        const P = axialForces ? axialForces[idx] || 0 : 0;
+        const {Kcond} = frameElementWithReleases(E, A, I, L, rel, P);
         const kLocal = Kcond;
 
         const T = [
@@ -569,7 +587,7 @@ function computeFrameResults(frame){
     return {displacements:full,reactions};
 }
 
-function computeFrameDiagrams(frame, res, divisions = 10) {
+function computeFrameDiagrams(frame, res, divisions = 10, axialForces) {
     const diags = [];
     frame.beams.forEach((el, idx) => {
         if (el.on === false) {
@@ -593,7 +611,8 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         const rel = { cz1: el.cz1, cz2: el.cz2 };
 
         // Use the same condensed stiffness as in the analysis
-        const {Kcond} = frameElementWithReleases(E, A, I, L, rel);
+        const P = axialForces ? axialForces[idx] || 0 : 0;
+        const {Kcond} = frameElementWithReleases(E, A, I, L, rel, P);
         const kLocal_modified = Kcond;
 
         const T = [
@@ -699,11 +718,9 @@ function computeFrameResultsPDelta(frame, opts={}) {
     const base = JSON.parse(JSON.stringify(frame));
     const height = Math.max(...frame.nodes.map(n=>n.y))-Math.min(...frame.nodes.map(n=>n.y)) || 1;
     let prevDisp = null;
-    let extra = [];
+    let axial = new Array(frame.beams.length).fill(0);
     for(let iter=0; iter<maxIter; iter++){
-        const cur = JSON.parse(JSON.stringify(base));
-        if(extra.length) cur.loads = (cur.loads||[]).concat(extra);
-        const res = computeFrameResults(cur);
+        const res = computeFrameResults(base, axial);
         if(!res) return res;
         if(prevDisp){
             let maxDiff=0;
@@ -714,14 +731,14 @@ function computeFrameResultsPDelta(frame, opts={}) {
             if(maxDiff < tol*height) return res;
         }
         prevDisp=res.displacements.slice();
-        extra=[];
-        const diags = computeFrameDiagrams(cur,res,1);
-        cur.beams.forEach((el,idx)=>{
+        const diags = computeFrameDiagrams(base,res,1, axial);
+        axial = axial.slice();
+        base.beams.forEach((el,idx)=>{
             if(el.on===false) return;
             const diag = diags[idx];
             if(!diag) return;
             const n1=el.n1,n2=el.n2;
-            const p1=cur.nodes[n1], p2=cur.nodes[n2];
+            const p1=base.nodes[n1], p2=base.nodes[n2];
             const dx=p2.x-p1.x, dy=p2.y-p1.y;
             const L=Math.hypot(dx,dy); if(L<1e-9) return;
             const c=dx/L, s=dy/L;
@@ -734,18 +751,10 @@ function computeFrameResultsPDelta(frame, opts={}) {
             const Delta=dLy2-dLy1;
             const P=(diag.normal[0].y + diag.normal[diag.normal.length-1].y)/2;
             if(Math.abs(P)<1e-12) return;
-            const Vd=P*Delta/L;
-            const Md=P*Delta/2;
-            const local=[0,-Vd,-Md,0,Vd,Md];
-            const T=[[c,s,0,0,0,0],[-s,c,0,0,0,0],[0,0,1,0,0,0],[0,0,0,c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
-            const gl=multiplyMatrixVector(transpose(T),local);
-            extra.push({node:n1,Px:gl[0],Py:gl[1],Mz:gl[2]});
-            extra.push({node:n2,Px:gl[3],Py:gl[4],Mz:gl[5]});
+            axial[idx]=P;
         });
     }
-    const finalFrame=JSON.parse(JSON.stringify(base));
-    if(extra.length) finalFrame.loads=(finalFrame.loads||[]).concat(extra);
-    return computeFrameResults(finalFrame);
+    return computeFrameResults(base, axial);
 }
 
 if (typeof module !== 'undefined' && module.exports) {
