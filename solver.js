@@ -656,12 +656,13 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
             let wX_total = 0, wY_total = 0;
             lineLoads.forEach(l => {
                 const start = l.start || 0;
-                const end = l.end || L;
+                const end   = l.end   === undefined ? L : l.end;
                 if (midX >= start && midX < end) {
-                    const w_ax = c * (l.wX1 || 0) + s * (l.wY1 || 0);
-                    const w_prp = -s * (l.wX1 || 0) + c * (l.wY1 || 0);
-                    wX_total += w_ax;
-                    wY_total += w_prp;
+                    const t  = (midX - start) / (end - start || 1);
+                    const wX = (l.wX1 || 0)*(1 - t) + (l.wX2 || 0)*t;
+                    const wY = (l.wY1 || 0)*(1 - t) + (l.wY2 || 0)*t;
+                    wX_total +=  c*wX + s*wY;      // axial component in local axes
+                    wY_total += -s*wX + c*wY;      // transverse component
                 }
             });
 
@@ -734,9 +735,12 @@ function computeFrameResultsPDelta(frame, opts={}) {
             const Delta=dLy2-dLy1;
             const P=(diag.normal[0].y + diag.normal[diag.normal.length-1].y)/2;
             if(Math.abs(P)<1e-12) return;
-            const Vd=P*Delta/L;
-            const Md=P*Delta/2;
-            const local=[0,-Vd,-Md,0,Vd,Md];
+            // --- P-Δ consistent nodal load vector ---
+            const Vd  =  P*(dLy2 - dLy1)/L;     // constant shear, sign from local convention
+            const Md1 = -P*dLy2;                // moment at node 1  (depends on the *other* node)
+            const Md2 = -P*dLy1;                // moment at node 2
+            const local = [0, -Vd, Md1,         // node 1
+                        0,  Vd, Md2];           // node 2
             const T=[[c,s,0,0,0,0],[-s,c,0,0,0,0],[0,0,1,0,0,0],[0,0,0,c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
             const gl=multiplyMatrixVector(transpose(T),local);
             extra.push({node:n1,Px:gl[0],Py:gl[1],Mz:gl[2]});
