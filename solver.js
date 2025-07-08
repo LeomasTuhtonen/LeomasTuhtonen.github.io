@@ -693,14 +693,70 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
     return diags;
 }
 
+function computeFrameResultsPDelta(frame, opts={}) {
+    const tol = opts.tolerance || 0.001;
+    const maxIter = opts.maxIter || 20;
+    const base = JSON.parse(JSON.stringify(frame));
+    const height = Math.max(...frame.nodes.map(n=>n.y))-Math.min(...frame.nodes.map(n=>n.y)) || 1;
+    let prevDisp = null;
+    let extra = [];
+    for(let iter=0; iter<maxIter; iter++){
+        const cur = JSON.parse(JSON.stringify(base));
+        if(extra.length) cur.loads = (cur.loads||[]).concat(extra);
+        const res = computeFrameResults(cur);
+        if(!res) return res;
+        if(prevDisp){
+            let maxDiff=0;
+            for(let i=0;i<res.displacements.length;i++){
+                const diff = Math.abs(res.displacements[i]-prevDisp[i]);
+                if(diff>maxDiff) maxDiff=diff;
+            }
+            if(maxDiff < tol*height) return res;
+        }
+        prevDisp=res.displacements.slice();
+        extra=[];
+        const diags = computeFrameDiagrams(cur,res,1);
+        cur.beams.forEach((el,idx)=>{
+            if(el.on===false) return;
+            const diag = diags[idx];
+            if(!diag) return;
+            const n1=el.n1,n2=el.n2;
+            const p1=cur.nodes[n1], p2=cur.nodes[n2];
+            const dx=p2.x-p1.x, dy=p2.y-p1.y;
+            const L=Math.hypot(dx,dy); if(L<1e-9) return;
+            const c=dx/L, s=dy/L;
+            const ux1=res.displacements[3*n1];
+            const uy1=res.displacements[3*n1+1];
+            const ux2=res.displacements[3*n2];
+            const uy2=res.displacements[3*n2+1];
+            const dLy1=-s*ux1 + c*uy1;
+            const dLy2=-s*ux2 + c*uy2;
+            const Delta=dLy2-dLy1;
+            const P=(diag.normal[0].y + diag.normal[diag.normal.length-1].y)/2;
+            if(Math.abs(P)<1e-12) return;
+            const Vd=P*Delta/L;
+            const Md=P*Delta/2;
+            const local=[0,-Vd,-Md,0,Vd,Md];
+            const T=[[c,s,0,0,0,0],[-s,c,0,0,0,0],[0,0,1,0,0,0],[0,0,0,c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
+            const gl=multiplyMatrixVector(transpose(T),local);
+            extra.push({node:n1,Px:gl[0],Py:gl[1],Mz:gl[2]});
+            extra.push({node:n2,Px:gl[3],Py:gl[4],Mz:gl[5]});
+        });
+    }
+    const finalFrame=JSON.parse(JSON.stringify(base));
+    if(extra.length) finalFrame.loads=(finalFrame.loads||[]).concat(extra);
+    return computeFrameResults(finalFrame);
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { computeResults, computeDiagrams, computeFrameResults, computeFrameDiagrams, setCrossSections, getSelfWeightLineLoads, getCrossSection, computeSectionDesign, computeInertia, computeWeakAxisInertia };
+    module.exports = { computeResults, computeDiagrams, computeFrameResults, computeFrameResultsPDelta, computeFrameDiagrams, setCrossSections, getSelfWeightLineLoads, getCrossSection, computeSectionDesign, computeInertia, computeWeakAxisInertia };
 }
 
 if (typeof window !== 'undefined') {
     window.computeResults = computeResults;
     window.computeDiagrams = computeDiagrams;
     window.computeFrameResults = computeFrameResults;
+    window.computeFrameResultsPDelta = computeFrameResultsPDelta;
     window.computeFrameDiagrams = computeFrameDiagrams;
     window.setCrossSections = setCrossSections;
     window.getSelfWeightLineLoads = (spans,name)=>getSelfWeightLineLoads(spans,name);
