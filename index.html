@@ -1764,9 +1764,9 @@ function updateFrameReactions(res){
         const ry=s.fixY?res.reactions[3*s.node+1]:0;
         const rz=s.fixRot?res.reactions[3*s.node+2]:0;
         sumX+=rx; sumY+=ry; sumZ+=rz;
-        html+=`<tr><td>${i+1}</td><td>${s.node}</td><td>${(rx/1000).toFixed(2)}</td><td>${(ry/1000).toFixed(2)}</td><td>${(rz/1000).toFixed(2)}</td></tr>`;
+        html+=`<tr><td>${i+1}</td><td>${s.node}</td><td>${(rx/1000).toFixed(4)}</td><td>${(ry/1000).toFixed(4)}</td><td>${(rz/1000).toFixed(4)}</td></tr>`;
     });
-    html+=`<tr><th colspan="2">Sum</th><th>${(sumX/1000).toFixed(2)}</th><th>${(sumY/1000).toFixed(2)}</th><th>${(sumZ/1000).toFixed(2)}</th></tr>`;
+    html+=`<tr><th colspan="2">Sum</th><th>${(sumX/1000).toFixed(4)}</th><th>${(sumY/1000).toFixed(4)}</th><th>${(sumZ/1000).toFixed(4)}</th></tr>`;
     html+='</tbody></table>';
     table.innerHTML=html;
 }
@@ -1865,7 +1865,7 @@ function drawFrame(res,diags){
 
     if(frameState.loads.length){
         const maxF=Math.max(...frameState.loads.map(l=>Math.hypot(l.Fx||0,l.Fz||0)),0);
-        const forceScale=30/((maxF||1)*scale);
+        const forceScale=50/((maxF||1)*scale); // make arrows longer
         const momentScale=20;
         frameState.loads.forEach(l=>{
             const node=frameState.nodes[l.node];
@@ -1875,10 +1875,10 @@ function drawFrame(res,diags){
             if(mag>0){
                 const start=toPoint(node.x-fx*forceScale,node.y-fz*forceScale);
                 const dir=p.subtract(start).normalize();
-                new framePaper.Path({segments:[start,p], strokeColor:'green'});
-                const left=p.subtract(dir.multiply(6)).add(dir.rotate(90).multiply(4));
-                const right=p.subtract(dir.multiply(6)).add(dir.rotate(-90).multiply(4));
-                new framePaper.Path({segments:[left,p,right], strokeColor:'green', fillColor:'green'});
+                new framePaper.Path({segments:[start,p], strokeColor:'green', strokeWidth:2});
+                const left=p.subtract(dir.multiply(8)).add(dir.rotate(90).multiply(5));
+                const right=p.subtract(dir.multiply(8)).add(dir.rotate(-90).multiply(5));
+                new framePaper.Path({segments:[left,p,right], strokeColor:'green', fillColor:'green', strokeWidth:2});
             }
             if(l.My){
                 const sign=l.My>0?1:-1;
@@ -1888,17 +1888,18 @@ function drawFrame(res,diags){
                 const endP=p.add([-r,0]);
                 const arc=new framePaper.Path.Arc(start, through, endP);
                 arc.strokeColor='purple';
+                arc.strokeWidth = 2;
                 const dir=endP.subtract(through).normalize();
                 const a1=endP.add(dir.rotate(90*sign).multiply(6));
                 const a2=endP.add(dir.rotate(-90*sign).multiply(6));
-                new framePaper.Path({segments:[a1,endP,a2], strokeColor:'purple', fillColor:'purple'});
+                new framePaper.Path({segments:[a1,endP,a2], strokeColor:'purple', fillColor:'purple', strokeWidth:2});
             }
         });
     }
 
     if(frameState.memberPointLoads.length){
         const maxF=Math.max(...frameState.memberPointLoads.map(l=>Math.hypot(l.Fx||0,l.Fy||0)),0);
-        const forceScale=30/((maxF||1)*scale);
+        const forceScale=50/((maxF||1)*scale); // longer arrows
         const momentScale=20;
         frameState.memberPointLoads.forEach(l=>{
             const b=frameState.beams[l.beam]; if(!b) return;
@@ -1911,10 +1912,10 @@ function drawFrame(res,diags){
             if(mag!==0){
                 const start=toPoint(n1.x+dir.x*l.x - fx*forceScale, n1.y+dir.y*l.x - fy*forceScale);
                 const vec=p.subtract(start).normalize();
-                new framePaper.Path({segments:[start,p], strokeColor:'green'});
-                const left=p.subtract(vec.multiply(6)).add(vec.rotate(90).multiply(4));
-                const right=p.subtract(vec.multiply(6)).add(vec.rotate(-90).multiply(4));
-                new framePaper.Path({segments:[left,p,right], strokeColor:'green', fillColor:'green'});
+                new framePaper.Path({segments:[start,p], strokeColor:'green', strokeWidth:2});
+                const left=p.subtract(vec.multiply(8)).add(vec.rotate(90).multiply(5));
+                const right=p.subtract(vec.multiply(8)).add(vec.rotate(-90).multiply(5));
+                new framePaper.Path({segments:[left,p,right], strokeColor:'green', fillColor:'green', strokeWidth:2});
             }
             if(l.Mz){
                 const sign=l.Mz>0?1:-1;
@@ -1924,23 +1925,24 @@ function drawFrame(res,diags){
                 const endP=p.add([-r,0]);
                 const arc=new framePaper.Path.Arc(start, through, endP);
                 arc.strokeColor='purple';
+                arc.strokeWidth = 2;
                 const d=endP.subtract(through).normalize();
                 const a1=endP.add(d.rotate(90*sign).multiply(6));
                 const a2=endP.add(d.rotate(-90*sign).multiply(6));
-                new framePaper.Path({segments:[a1,endP,a2], strokeColor:'purple', fillColor:'purple'});
+                new framePaper.Path({segments:[a1,endP,a2], strokeColor:'purple', fillColor:'purple', strokeWidth:2});
             }
         });
     }
 
     if(frameState.memberLineLoads.length){
         const maxW=Math.max(...frameState.memberLineLoads.map(l=>Math.max(Math.hypot(l.wX1||0,l.wY1||0),Math.hypot(l.wX2||0,l.wY2||0))),0);
-        const forceScale=30/((maxW||1)*scale);
+        const forceScale=50/((maxW||1)*scale); // longer arrows
         frameState.memberLineLoads.forEach(l=>{
             const b=frameState.beams[l.beam]; if(!b) return;
             const n1=frameState.nodes[b.n1]; const n2=frameState.nodes[b.n2];
             const dx=n2.x-n1.x, dy=n2.y-n1.y; const L=Math.hypot(dx,dy);
             const dir=new framePaper.Point(dx,dy).normalize();
-            const steps=5;
+            const steps=10;
             for(let i=0;i<=steps;i++){
                 const t=i/steps;
                 const x=l.start+(l.end-l.start)*t;
@@ -1950,11 +1952,11 @@ function drawFrame(res,diags){
                 const base=toPoint(n1.x+dir.x*x,n1.y+dir.y*x);
                 const loadVec=new framePaper.Point(wX,wY);
                 const end=base.add(loadVec.normalize().multiply(Math.hypot(wX,wY)*forceScale));
-                new framePaper.Path({segments:[end,base], strokeColor:'blue'});
+                new framePaper.Path({segments:[end,base], strokeColor:'blue', strokeWidth:2});
                 const vec=base.subtract(end).normalize();
-                const left=end.add(vec.rotate(30).multiply(4));
-                const right=end.add(vec.rotate(-30).multiply(4));
-                new framePaper.Path({segments:[left,end,right], strokeColor:'blue', fillColor:'blue'});
+                const left=end.add(vec.rotate(30).multiply(6));
+                const right=end.add(vec.rotate(-30).multiply(6));
+                new framePaper.Path({segments:[left,end,right], strokeColor:'blue', fillColor:'blue', strokeWidth:2});
             }
         });
     }
