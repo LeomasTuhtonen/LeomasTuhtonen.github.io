@@ -698,57 +698,62 @@ function computeFrameResultsPDelta(frame, opts={}) {
     const tol = opts.tolerance || 0.001;
     const maxIter = opts.maxIter || 20;
     const base = JSON.parse(JSON.stringify(frame));
-    const height = Math.max(...frame.nodes.map(n=>n.y))-Math.min(...frame.nodes.map(n=>n.y)) || 1;
+    const height = Math.max(...frame.nodes.map(n=>n.y)) - Math.min(...frame.nodes.map(n=>n.y)) || 1;
     let prevDisp = null;
     let extra = [];
-    for(let iter=0; iter<maxIter; iter++){
+    for (let iter = 0; iter < maxIter; iter++) {
         const cur = JSON.parse(JSON.stringify(base));
-        if(extra.length) cur.loads = (cur.loads||[]).concat(extra);
+        if (extra.length) cur.loads = (cur.loads || []).concat(extra);
         const res = computeFrameResults(cur);
-        if(!res) return res;
-        if(prevDisp){
-            let maxDiff=0;
-            for(let i=0;i<res.displacements.length;i++){
-                const diff = Math.abs(res.displacements[i]-prevDisp[i]);
-                if(diff>maxDiff) maxDiff=diff;
-            }
-            if(maxDiff < tol*height) return res;
-        }
-        prevDisp=res.displacements.slice();
-        extra=[];
-        const diags = computeFrameDiagrams(cur,res,1);
-        cur.beams.forEach((el,idx)=>{
-            if(el.on===false) return;
+        if (!res) return res;
+
+        const diags = computeFrameDiagrams(cur, res, 1);
+        const newExtra = [];
+        cur.beams.forEach((el, idx) => {
+            if (el.on === false) return;
             const diag = diags[idx];
-            if(!diag) return;
-            const n1=el.n1,n2=el.n2;
-            const p1=cur.nodes[n1], p2=cur.nodes[n2];
-            const dx=p2.x-p1.x, dy=p2.y-p1.y;
-            const L=Math.hypot(dx,dy); if(L<1e-9) return;
-            const c=dx/L, s=dy/L;
-            const ux1=res.displacements[3*n1];
-            const uy1=res.displacements[3*n1+1];
-            const ux2=res.displacements[3*n2];
-            const uy2=res.displacements[3*n2+1];
-            const dLy1=-s*ux1 + c*uy1;
-            const dLy2=-s*ux2 + c*uy2;
-            const Delta=dLy2-dLy1;
-            const P=(diag.normal[0].y + diag.normal[diag.normal.length-1].y)/2;
-            if(Math.abs(P)<1e-12) return;
-            // --- P-Δ consistent nodal load vector ---
-            const Vd  =  P*(dLy2 - dLy1)/L;     // constant shear, sign from local convention
-            const Md1 = -P*dLy2;                // moment at node 1  (depends on the *other* node)
-            const Md2 = -P*dLy1;                // moment at node 2
-            const local = [0, -Vd, Md1,         // node 1
-                        0,  Vd, Md2];           // node 2
-            const T=[[c,s,0,0,0,0],[-s,c,0,0,0,0],[0,0,1,0,0,0],[0,0,0,c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
-            const gl=multiplyMatrixVector(transpose(T),local);
-            extra.push({node:n1,Px:gl[0],Py:gl[1],Mz:gl[2]});
-            extra.push({node:n2,Px:gl[3],Py:gl[4],Mz:gl[5]});
+            if (!diag) return;
+            const n1 = el.n1, n2 = el.n2;
+            const p1 = cur.nodes[n1], p2 = cur.nodes[n2];
+            const dx = p2.x - p1.x, dy = p2.y - p1.y;
+            const L = Math.hypot(dx, dy); if (L < 1e-9) return;
+            const c = dx / L, s = dy / L;
+            const ux1 = res.displacements[3 * n1];
+            const uy1 = res.displacements[3 * n1 + 1];
+            const ux2 = res.displacements[3 * n2];
+            const uy2 = res.displacements[3 * n2 + 1];
+            const dLy1 = -s * ux1 + c * uy1;
+            const dLy2 = -s * ux2 + c * uy2;
+            const P = (diag.normal[0].y + diag.normal[diag.normal.length - 1].y) / 2;
+            if (Math.abs(P) < 1e-12) return;
+            const Vd = P * (dLy2 - dLy1) / L;
+            const Md1 = -P * dLy2;
+            const Md2 = -P * dLy1;
+            const local = [0, -Vd, Md1, 0, Vd, Md2];
+            const T = [[c, s, 0, 0, 0, 0], [-s, c, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0], [0, 0, 0, c, s, 0], [0, 0, 0, -s, c, 0], [0, 0, 0, 0, 0, 1]];
+            const gl = multiplyMatrixVector(transpose(T), local);
+            newExtra.push({ node: n1, Px: gl[0], Py: gl[1], Mz: gl[2] });
+            newExtra.push({ node: n2, Px: gl[3], Py: gl[4], Mz: gl[5] });
         });
+
+        if (prevDisp) {
+            let maxDiff = 0;
+            for (let i = 0; i < res.displacements.length; i++) {
+                const diff = Math.abs(res.displacements[i] - prevDisp[i]);
+                if (diff > maxDiff) maxDiff = diff;
+            }
+            if (maxDiff < tol * height) {
+                const finalFrame = JSON.parse(JSON.stringify(base));
+                if (newExtra.length) finalFrame.loads = (finalFrame.loads || []).concat(newExtra);
+                return computeFrameResults(finalFrame);
+            }
+        }
+
+        prevDisp = res.displacements.slice();
+        extra = newExtra;
     }
-    const finalFrame=JSON.parse(JSON.stringify(base));
-    if(extra.length) finalFrame.loads=(finalFrame.loads||[]).concat(extra);
+    const finalFrame = JSON.parse(JSON.stringify(base));
+    if (extra.length) finalFrame.loads = (finalFrame.loads || []).concat(extra);
     return computeFrameResults(finalFrame);
 }
 

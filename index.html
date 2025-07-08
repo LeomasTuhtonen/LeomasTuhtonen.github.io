@@ -1764,9 +1764,9 @@ function updateFrameReactions(res){
         const ry=s.fixY?res.reactions[3*s.node+1]:0;
         const rz=s.fixRot?res.reactions[3*s.node+2]:0;
         sumX+=rx; sumY+=ry; sumZ+=rz;
-        html+=`<tr><td>${i+1}</td><td>${s.node}</td><td>${(rx/1000).toFixed(4)}</td><td>${(ry/1000).toFixed(4)}</td><td>${(rz/1000).toFixed(4)}</td></tr>`;
+        html+=`<tr><td>${i+1}</td><td>${s.node}</td><td>${(rx/1000).toFixed(1)}</td><td>${(ry/1000).toFixed(1)}</td><td>${(rz/1000).toFixed(1)}</td></tr>`;
     });
-    html+=`<tr><th colspan="2">Sum</th><th>${(sumX/1000).toFixed(4)}</th><th>${(sumY/1000).toFixed(4)}</th><th>${(sumZ/1000).toFixed(4)}</th></tr>`;
+    html+=`<tr><th colspan="2">Sum</th><th>${(sumX/1000).toFixed(1)}</th><th>${(sumY/1000).toFixed(1)}</th><th>${(sumZ/1000).toFixed(1)}</th></tr>`;
     html+='</tbody></table>';
     table.innerHTML=html;
 }
@@ -1936,7 +1936,7 @@ function drawFrame(res,diags){
 
     if(frameState.memberLineLoads.length){
         const maxW=Math.max(...frameState.memberLineLoads.map(l=>Math.max(Math.hypot(l.wX1||0,l.wY1||0),Math.hypot(l.wX2||0,l.wY2||0))),0);
-        const forceScale=50/((maxW||1)*scale); // longer arrows
+        const forceScale=50/((maxW||1)*scale); // base scaling for arrow length
         frameState.memberLineLoads.forEach(l=>{
             const b=frameState.beams[l.beam]; if(!b) return;
             const n1=frameState.nodes[b.n1]; const n2=frameState.nodes[b.n2];
@@ -1949,9 +1949,15 @@ function drawFrame(res,diags){
                 if(x<0||x>L) continue;
                 const wX=l.wX1+(l.wX2-l.wX1)*t;
                 const wY=l.wY1+(l.wY2-l.wY1)*t;
-                const base=toPoint(n1.x+dir.x*x,n1.y+dir.y*x);
+                const bx=n1.x+dir.x*x;
+                const by=n1.y+dir.y*x;
                 const loadVec=new framePaper.Point(wX,wY);
-                const end=base.add(loadVec.normalize().multiply(Math.hypot(wX,wY)*forceScale));
+                const mag=Math.hypot(wX,wY);
+                const addLen=20/scale;
+                const ex=mag===0?bx:bx+loadVec.x/mag*(mag*forceScale + addLen);
+                const ey=mag===0?by:by+loadVec.y/mag*(mag*forceScale + addLen);
+                const base=toPoint(bx,by);
+                const end=toPoint(ex,ey);
                 new framePaper.Path({segments:[end,base], strokeColor:'blue', strokeWidth:2});
                 const vec=base.subtract(end).normalize();
                 const left=end.add(vec.rotate(30).multiply(6));
