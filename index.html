@@ -38,8 +38,8 @@
         .frame-row .cell select { width:70px; }
         #frameLayout { display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; }
         #frameControls { flex:1 1 100%; max-width:none; }
-        #frameDiagram { flex:2 1 400px; min-height:520px; max-width:600px; }
-        #frameDiagram canvas { width:100%; height:100%; max-width:600px; max-height:600px; }
+        #frameDiagram { flex:2 1 400px; min-height:520px; max-width:650px; }
+        #frameDiagram canvas { width:100%; height:100%; max-width:650px; max-height:650px; }
         #frameToolbar { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
     </style>
 </head>
@@ -332,7 +332,7 @@
                         <option value="normal">Normal force</option>
                     </select>
                 </div>
-                <canvas id="frameCanvas" width="600" height="600" style="border:1px solid #ccc; width:100%; height:100%;"></canvas>
+                <canvas id="frameCanvas" width="650" height="650" style="border:1px solid #ccc; width:100%; height:100%;"></canvas>
             </div>
         </div>
     </div> <!-- end frameTab -->
@@ -1767,7 +1767,7 @@ function updateFrameReactions(res){
 
 function drawFrame(res,diags){
     const canvas = document.getElementById('frameCanvas');
-    const maxSize = 600;
+    const maxSize = 650;
     const cW = Math.min(canvas.clientWidth || maxSize, maxSize);
     const cH = Math.min(canvas.clientHeight || maxSize, maxSize);
     canvas.width = cW;
@@ -1791,7 +1791,7 @@ function drawFrame(res,diags){
     const ys=frameState.nodes.map(n=>n.y);
     const minX=Math.min(...xs), maxX=Math.max(...xs);
     const minY=Math.min(...ys), maxY=Math.max(...ys);
-    const pad = 40;
+    const pad = 50;
     const innerW = canvas.width - 2 * pad;
     const innerH = canvas.height - 2 * pad;
     const width = maxX - minX || 1;
@@ -2008,9 +2008,9 @@ function drawFrame(res,diags){
             const vals=diags[i][type];
             const path=new framePaper.Path({strokeColor:'red', fillColor:'rgba(255,0,0,0.3)'});
             path.add(p1);
-            // Internal forces are already adjusted for sign, so always draw on
-            // the tension side of the member.
-            const sign = 1;
+            // Internal forces are already adjusted for sign. Flip the
+            // orientation for a tension-side diagram.
+            const sign = -1;
             vals.forEach((pt,j)=>{
                 const t=j/(vals.length-1);
                 const base=toPoint(n1.x+(n2.x-n1.x)*t,n1.y+(n2.y-n1.y)*t);
@@ -2031,9 +2031,9 @@ function drawFrame(res,diags){
 
 window.addEventListener('load',()=>{
     frameState.beams=[
-        {name:'B1',x1:0,y1:0,x2:0,y2:5,section:'HEA200',kx1:-1,ky1:-1,cz1:-1,kx2:-1,ky2:-1,cz2:-1,on:true},
-        {name:'B2',x1:6,y1:0,x2:6,y2:5,section:'HEA200',kx1:-1,ky1:-1,cz1:-1,kx2:-1,ky2:-1,cz2:-1,on:true},
-        {name:'B3',x1:0,y1:5,x2:6,y2:5,section:'HEA200',kx1:-1,ky1:-1,cz1:-1,kx2:-1,ky2:-1,cz2:-1,on:true}
+        {name:'B1',x1:0,y1:0,x2:0,y2:5,section:'HEA400',kx1:-1,ky1:-1,cz1:-1,kx2:-1,ky2:-1,cz2:-1,on:true},
+        {name:'B2',x1:6,y1:0,x2:6,y2:5,section:'HEA400',kx1:-1,ky1:-1,cz1:-1,kx2:-1,ky2:-1,cz2:-1,on:true},
+        {name:'B3',x1:0,y1:5,x2:6,y2:5,section:'HEA400',kx1:-1,ky1:-1,cz1:-1,kx2:-1,ky2:-1,cz2:-1,on:true}
     ];
     rebuildNodes();
     frameState.supports=[
@@ -2042,8 +2042,8 @@ window.addEventListener('load',()=>{
     ];
     // Initial example loads scaled down to sensible magnitudes
     frameState.loads=[
-        {node:1,Fx:25,Fz:-200,My:0},
-        {node:3,Fx:25,Fz:-200,My:0}
+        {node:1,Fx:5,Fz:-200,My:0},
+        {node:3,Fx:5,Fz:-200,My:0}
     ];
     rebuildFrameBeams();
     rebuildFrameSupports();
