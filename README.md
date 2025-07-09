@@ -3,6 +3,8 @@
 A browser-based beam calculator using 2D finite element analysis. Simply open
 `index.html` in a modern web browser to get started.
 
+**Disclaimer:** This tool is provided for educational and preliminary design purposes only. The results should not be used for final structural design without independent verification by a qualified professional engineer. The author assumes no responsibility or liability for any errors or omissions in the content of this site or for any actions taken in reliance on the information provided.
+
 Features:
 - Define any number of spans with adjustable node spacing.
 - Built-in steel and timber cross-section libraries with grade selection.
