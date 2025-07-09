@@ -38,8 +38,8 @@
         .frame-row .cell select { width:70px; }
         #frameLayout { display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; }
         #frameControls { flex:1 1 100%; max-width:none; }
-        #frameDiagram { flex:2 1 400px; min-height:520px; }
-        #frameDiagram canvas { width:100%; height:100%; }
+        #frameDiagram { flex:2 1 400px; min-height:520px; max-width:650px; }
+        #frameDiagram canvas { width:100%; height:100%; max-width:650px; max-height:650px; }
         #frameToolbar { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
     </style>
 </head>
@@ -1773,8 +1773,9 @@ function updateFrameReactions(res){
 
 function drawFrame(res,diags){
     const canvas = document.getElementById('frameCanvas');
-    const cW = canvas.clientWidth || 650;
-    const cH = canvas.clientHeight || 650;
+    const maxSize = 650;
+    const cW = Math.min(canvas.clientWidth || maxSize, maxSize);
+    const cH = Math.min(canvas.clientHeight || maxSize, maxSize);
     canvas.width = cW;
     canvas.height = cH;
     if(!framePaper){
@@ -1959,9 +1960,9 @@ function drawFrame(res,diags){
                 const end=toPoint(ex,ey);
                 new framePaper.Path({segments:[end,base], strokeColor:'blue', strokeWidth:2});
                 const vec=base.subtract(end).normalize();
-                const left=base.add(vec.rotate(30).multiply(6));
-                const right=base.add(vec.rotate(-30).multiply(6));
-                new framePaper.Path({segments:[left,base,right], strokeColor:'blue', fillColor:'blue', strokeWidth:2});
+                const left=end.add(vec.rotate(30).multiply(6));
+                const right=end.add(vec.rotate(-30).multiply(6));
+                new framePaper.Path({segments:[left,end,right], strokeColor:'blue', fillColor:'blue', strokeWidth:2});
             }
         });
     }
