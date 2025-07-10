@@ -166,4 +166,7 @@ function close(actual, expected, tol, msg){
   const res=computeFrameResultsLBA(frame,0);
   assert(res.alpha>1000,'alpha magnitude');
   assert(res.displacements.length===6,'mode displacement size');
+  for(let i=1;i<res.modes.length;i++){
+    assert(res.modes[i]>=res.modes[i-1],'modes sorted');
+  }
 })();

@@ -833,7 +833,10 @@ function computeFrameBucklingModes(frame, numModes = 10) {
     const ev = new EigenvalueDecomposition(inverse(new Matrix(Kmod)).mmul(new Matrix(Kgmod)));
     const vals = Array.from(ev.realEigenvalues);
     const vecs = ev.eigenvectorMatrix.to2DArray();
-    const order = vals.map((v, i) => ({ v, i })).filter(o => o.v > 1e-8).sort((a, b) => a.v - b.v).slice(0, numModes);
+    const order = vals.map((v, i) => ({ v, i }))
+        .filter(o => o.v > 1e-8)
+        .sort((a, b) => b.v - a.v)
+        .slice(0, numModes);
     const alphas = order.map(o => 1 / o.v);
     const vectors = order.map(o => vecs.map(r => r[o.i]));
     return { alphas, vectors, indices };
