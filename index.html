@@ -38,8 +38,8 @@
         .frame-row .cell select { width:70px; }
         #frameLayout { display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; }
         #frameControls { flex:1 1 100%; max-width:none; }
-        #frameDiagram { flex:2 1 400px; min-height:520px; max-width:650px; }
-        #frameDiagram canvas { width:100%; height:100%; max-width:650px; max-height:650px; }
+        #frameDiagram { flex:2 1 400px; min-height:520px; max-width:800px; }
+        #frameDiagram canvas { width:100%; height:100%; max-width:800px; max-height:650px; }
         #frameToolbar { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
     </style>
 </head>
@@ -341,7 +341,7 @@
                     <select id="lbaModeSelect" style="display:none;" onchange="solveFrame()"></select>
                     <span id="lbaAlpha" style="margin-left:6px;font-size:12px;display:none;"></span>
                 </div>
-                <canvas id="frameCanvas" width="650" height="650" style="border:1px solid #ccc; width:100%; height:100%;"></canvas>
+                <canvas id="frameCanvas" width="800" height="650" style="border:1px solid #ccc; width:100%; height:100%;"></canvas>
             </div>
         </div>
     </div> <!-- end frameTab -->
@@ -1802,7 +1802,7 @@ function updateFrameReactions(res){
 
 function drawFrame(res,diags){
     const canvas = document.getElementById('frameCanvas');
-    const maxSize = 650;
+    const maxSize = 800;
     const cW = Math.min(canvas.clientWidth || maxSize, maxSize);
     const cH = Math.min(canvas.clientHeight || maxSize, maxSize);
     canvas.width = cW;
