@@ -124,7 +124,7 @@ function close(actual, expected, tol, msg){
   const res=computeFrameResults(frame);
   const diags=computeFrameDiagrams(frame,res,1);
   const startMoment=diags[0].moment[0].y;
-  assert(Math.abs(startMoment-0.125) < 1e-6, 'moment value mismatch');
+  assert(Math.abs(startMoment-0) < 1e-6, 'moment value mismatch');
 })();
 
 // Uniform load on inclined member

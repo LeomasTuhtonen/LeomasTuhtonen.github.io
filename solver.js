@@ -104,6 +104,22 @@ function addMatrices(A,B){
     return A.map((row,i)=>row.map((v,j)=>v+B[i][j]));
 }
 
+function condenseLoadVector(KbbInv, Kbn, fFull){
+    const temp=new Array(6).fill(0);
+    for(let i=0;i<6;i++){
+        let sum=0;
+        for(let j=0;j<6;j++) sum+=KbbInv[i][j]*fFull[j];
+        temp[i]=sum;
+    }
+    const fCond=new Array(6).fill(0);
+    for(let i=0;i<6;i++){
+        let sum=0;
+        for(let j=0;j<6;j++) sum+=Kbn[i][j]*temp[j];
+        fCond[i]-=sum;
+    }
+    return fCond;
+}
+
 function buildGlobalLoadVector(frame){
     const n=frame.nodes.length; const F=new Array(3*n).fill(0);
     frame.loads?.forEach(l=>{
@@ -580,6 +596,11 @@ function computeFrameResults(frame){
         const dx=p2.x-p1.x, dy=p2.y-p1.y;
         const L=Math.hypot(dx,dy); if(L===0) return;
         const c=dx/L, s=dy/L;
+        const E=el.E||frame.E||210e9;
+        const I=el.I||frame.I||1e-6;
+        const A=el.A||frame.A||0.001;
+        const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
+        const {KbbInv,Kbn}=frameElementWithReleases(E,A,I,L,rel);
         const a=l.x; const b=L-a;
         const local=[0,0,0,0,0,0];
         const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
@@ -599,8 +620,9 @@ function computeFrameResults(frame){
             local[2]+=l.Mz*(1-a/L);
             local[5]+=l.Mz*(a/L);
         }
+        const localCond=condenseLoadVector(KbbInv,Kbn,local);
         const T=[[ c, s,0,0,0,0],[-s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c, s,0],[0,0,0,-s, c,0],[0,0,0,0,0,1]];
-        const gl=multiplyMatrixVector(transpose(T),local);
+        const gl=multiplyMatrixVector(transpose(T),localCond);
         const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
         for(let i=0;i<6;i++) F[dofs[i]]+=gl[i];
     });
@@ -612,12 +634,17 @@ function computeFrameResults(frame){
         const dx=p2.x-p1.x, dy=p2.y-p1.y;
         const L=Math.hypot(dx,dy); if(L===0) return;
         const c=dx/L, s=dy/L;
+        const E=el.E||frame.E||210e9;
+        const I=el.I||frame.I||1e-6;
+        const A=el.A||frame.A||0.001;
+        const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
+        const {KbbInv,Kbn}=frameElementWithReleases(E,A,I,L,rel);
         const start=l.start===undefined?0:l.start;
         const end=l.end===undefined?L:l.end;
         const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
-        const local=fe;
+        const localCond=condenseLoadVector(KbbInv,Kbn,fe);
         const T=[[ c, s,0,0,0,0],[-s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c, s,0],[0,0,0,-s, c,0],[0,0,0,0,0,1]];
-        const gl=multiplyMatrixVector(transpose(T),local);
+        const gl=multiplyMatrixVector(transpose(T),localCond);
         const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
         for(let j=0;j<6;j++) F[dofs[j]]+=gl[j];
     });
@@ -662,7 +689,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         };
 
         // Use the same condensed stiffness as in the analysis
-        const {Kcond} = frameElementWithReleases(E, A, I, L, rel);
+        const {Kcond,KbbInv,Kbn} = frameElementWithReleases(E, A, I, L, rel);
         const kLocal_modified = Kcond;
 
         const T = [
@@ -679,18 +706,23 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
             const start=l.start===undefined?0:l.start;
             const end=l.end===undefined?L:l.end;
             const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
-            for (let i = 0; i < 6; i++) FEF[i] += fe[i];
+            const cond=condenseLoadVector(KbbInv,Kbn,fe);
+            for (let i = 0; i < 6; i++) FEF[i] += cond[i];
         });
         (frame.memberPointLoads || []).filter(l => l.beam === idx).forEach(l => {
              const a = l.x, b = L - a;
              const P_ax = c * (l.Fx || 0) + s * (l.Fy || 0);
              const P_prp = -s * (l.Fx || 0) + c * (l.Fy || 0);
-             FEF[0] += P_ax * b / L;
-             FEF[3] += P_ax * a / L;
-             FEF[1] += P_prp * b * b * (3 * a + b) / (L * L * L);
-             FEF[2] += P_prp * a * b * b / (L * L);
-             FEF[4] += P_prp * a * a * (3 * b + a) / (L * L * L);
-             FEF[5] += -P_prp * a * a * b / (L * L);
+             const local=[
+                 P_ax * b / L,
+                 P_prp * b * b * (3 * a + b) / (L * L * L),
+                 P_prp * a * b * b / (L * L),
+                 P_ax * a / L,
+                 P_prp * a * a * (3 * b + a) / (L * L * L),
+                 -P_prp * a * a * b / (L * L)
+             ];
+             const cond=condenseLoadVector(KbbInv,Kbn,local);
+             for (let i = 0; i < 6; i++) FEF[i] += cond[i];
         });
 
         const forcesFromDisp = multiplyMatrixVector(kLocal_modified, dLocal);
