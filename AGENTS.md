@@ -1,5 +1,7 @@
 # Repository Guidance for Codex
 
+The application is a static web application served via Github Pages. Make sure it runs just by launching the index.html.
+
 Before running any tests, Codex must install dependencies:
 
 ```bash
