@@ -830,9 +830,15 @@ function computeFrameResultsPDelta(frame, opts={}) {
             const Vd = P * (dLy2 - dLy1) / L;
             const Md1 = -P * dLy2;
             const Md2 = -P * dLy1;
+            const E = el.E || cur.E || 210e9;
+            const I = el.I || cur.I || 1e-6;
+            const A = el.A || cur.A || 0.001;
+            const rel = {kx1: el.kx1, ky1: el.ky1, cz1: el.cz1, kx2: el.kx2, ky2: el.ky2, cz2: el.cz2};
+            const {KbbInv, Kbn} = frameElementWithReleases(E, A, I, L, rel);
             const local = [0, -Vd, Md1, 0, Vd, Md2];
+            const cond = condenseLoadVector(KbbInv, Kbn, local);
             const T = [[c, s, 0, 0, 0, 0], [-s, c, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0], [0, 0, 0, c, s, 0], [0, 0, 0, -s, c, 0], [0, 0, 0, 0, 0, 1]];
-            const gl = multiplyMatrixVector(transpose(T), local);
+            const gl = multiplyMatrixVector(transpose(T), cond);
             newExtra.push({ node: n1, Px: gl[0], Py: gl[1], Mz: gl[2] });
             newExtra.push({ node: n2, Px: gl[3], Py: gl[4], Mz: gl[5] });
         });
@@ -882,16 +888,18 @@ function geometricStiffnessMatrix(N, L) {
     return kg;
 }
 
-function geometricStiffnessCondensed(P, L, c, s /* , rel */) {
-    // Start from the unreleased geometric stiffness matrix and let the
-    // elastic matrix handle any end releases. Mixing the two here leads
-    // to an ill‑conditioned global Kg.
+function geometricStiffnessCondensed(P, L, c, s, rel) {
     const kgLocal = geometricStiffnessMatrix(P, L);
-    const kgCond = kgLocal; // skip static condensation
-    const T = [
-        [c, s, 0, 0, 0, 0], [-s, c, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
-        [0, 0, 0, c, s, 0], [0, 0, 0, -s, c, 0], [0, 0, 0, 0, 0, 1]
-    ];
+
+    // -------- static condensation -------------
+    const {KbbInv, Kbn} = frameElementWithReleases(1, 1, 1, L, rel);  // only need Kbn/KbbInv
+    const temp = multiplyMatrix(Kbn, KbbInv);          // Knb = Kbnᵀ
+    const sub  = multiplyMatrix(temp, transpose(Kbn));
+    const kgCond = kgLocal.map((row,i)=>row.map((v,j)=>v - sub[i][j]));
+    // ------------------------------------------
+
+    const T = [[c,s,0,0,0,0],[-s,c,0,0,0,0],[0,0,1,0,0,0],
+               [0,0,0,c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
     return multiplyMatrix(transpose(T), multiplyMatrix(kgCond, T));
 }
 
