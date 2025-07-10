@@ -11,5 +11,8 @@
   "devDependencies": {
     "eslint": "^8.56.0",
     "puppeteer": "^24.11.0"
+  },
+  "dependencies": {
+    "ml-matrix": "^6.12.1"
   }
 }

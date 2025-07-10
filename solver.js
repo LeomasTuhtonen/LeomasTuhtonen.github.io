@@ -757,8 +757,111 @@ function computeFrameResultsPDelta(frame, opts={}) {
     return computeFrameResults(finalFrame);
 }
 
+function geometricStiffnessMatrix(N, L) {
+    const factor = N / (30 * L);
+    const base = [
+        [36, 3 * L, -36, 3 * L],
+        [3 * L, 4 * L * L, -3 * L, -L * L],
+        [-36, -3 * L, 36, -3 * L],
+        [3 * L, -L * L, -3 * L, 4 * L * L]
+    ];
+    const kg = Array.from({ length: 6 }, () => new Array(6).fill(0));
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            const val = base[i][j] * factor;
+            const r = i < 2 ? i + 1 : i + 2;
+            const c = j < 2 ? j + 1 : j + 2;
+            kg[r][c] = val;
+        }
+    }
+    return kg;
+}
+
+function computeFrameBucklingModes(frame, numModes = 10) {
+    const baseRes = computeFrameResults(frame);
+    if (!baseRes) return null;
+    const diags = computeFrameDiagrams(frame, baseRes, 1);
+    const axial = frame.beams.map((b, i) => {
+        if (b.on === false) return 0;
+        const d = diags[i];
+        if (!d || !d.normal.length) return 0;
+        return (d.normal[0].y + d.normal[d.normal.length - 1].y) / 2;
+    });
+
+    const n = frame.nodes.length;
+    const dof = 3 * n;
+    const K = Array.from({ length: dof }, () => new Array(dof).fill(0));
+    const Kg = Array.from({ length: dof }, () => new Array(dof).fill(0));
+    frame.beams.forEach((el, idx) => {
+        if (el.on === false) return;
+        const n1 = el.n1, n2 = el.n2;
+        const p1 = frame.nodes[n1], p2 = frame.nodes[n2];
+        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+        const L = Math.hypot(dx, dy); if (L < 1e-9) return;
+        const c = dx / L, s = dy / L;
+        const E = el.E || frame.E || 210e9;
+        const I = el.I || frame.I || 1e-6;
+        const A = el.A || frame.A || 0.001;
+        const rel = { cz1: el.cz1, cz2: el.cz2 };
+        const { Kcond } = frameElementWithReleases(E, A, I, L, rel);
+        const T = [
+            [c, s, 0, 0, 0, 0], [-s, c, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
+            [0, 0, 0, c, s, 0], [0, 0, 0, -s, c, 0], [0, 0, 0, 0, 0, 1]
+        ];
+        const kG = multiplyMatrix(transpose(T), multiplyMatrix(Kcond, T));
+        const dofs = [3 * n1, 3 * n1 + 1, 3 * n1 + 2, 3 * n2, 3 * n2 + 1, 3 * n2 + 2];
+        for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) K[dofs[i]][dofs[j]] += kG[i][j];
+        const P = axial[idx];
+        if (Math.abs(P) < 1e-12) return;
+        const kgLocal = geometricStiffnessMatrix(P, L);
+        const kgG = multiplyMatrix(transpose(T), multiplyMatrix(kgLocal, T));
+        for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) Kg[dofs[i]][dofs[j]] += kgG[i][j];
+    });
+
+    const fixed = [];
+    frame.supports.forEach(s => {
+        if (s.fixX) fixed.push(3 * s.node);
+        if (s.fixY) fixed.push(3 * s.node + 1);
+        if (s.fixRot) fixed.push(3 * s.node + 2);
+    });
+    const { Kmod, indices } = applyBC(K, new Array(dof).fill(0), fixed);
+    const Kgmod = indices.map(i => indices.map(j => Kg[i][j]));
+    const { Matrix, EigenvalueDecomposition, inverse } = require('ml-matrix');
+    const ev = new EigenvalueDecomposition(inverse(new Matrix(Kmod)).mmul(new Matrix(Kgmod)));
+    const vals = Array.from(ev.realEigenvalues);
+    const vecs = ev.eigenvectorMatrix.to2DArray();
+    const order = vals.map((v, i) => ({ v, i })).filter(o => o.v > 1e-8).sort((a, b) => a.v - b.v).slice(0, numModes);
+    const alphas = order.map(o => 1 / o.v);
+    const vectors = order.map(o => vecs.map(r => r[o.i]));
+    return { alphas, vectors, indices };
+}
+
+function computeFrameResultsLBA(frame, mode = 0) {
+    const res = computeFrameBucklingModes(frame, 10);
+    if (!res) return null;
+    const m = Math.min(Math.max(mode, 0), res.alphas.length - 1);
+    const dof = frame.nodes.length * 3;
+    const disp = new Array(dof).fill(0);
+    res.indices.forEach((idx, i) => { disp[idx] = res.vectors[m][i]; });
+    return { displacements: disp, alpha: res.alphas[m], modes: res.alphas };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { computeResults, computeDiagrams, computeFrameResults, computeFrameResultsPDelta, computeFrameDiagrams, setCrossSections, getSelfWeightLineLoads, getCrossSection, computeSectionDesign, computeInertia, computeWeakAxisInertia };
+    module.exports = {
+        computeResults,
+        computeDiagrams,
+        computeFrameResults,
+        computeFrameResultsPDelta,
+        computeFrameResultsLBA,
+        computeFrameBucklingModes,
+        computeFrameDiagrams,
+        setCrossSections,
+        getSelfWeightLineLoads,
+        getCrossSection,
+        computeSectionDesign,
+        computeInertia,
+        computeWeakAxisInertia
+    };
 }
 
 if (typeof window !== 'undefined') {
@@ -766,6 +869,8 @@ if (typeof window !== 'undefined') {
     window.computeDiagrams = computeDiagrams;
     window.computeFrameResults = computeFrameResults;
     window.computeFrameResultsPDelta = computeFrameResultsPDelta;
+    window.computeFrameResultsLBA = computeFrameResultsLBA;
+    window.computeFrameBucklingModes = computeFrameBucklingModes;
     window.computeFrameDiagrams = computeFrameDiagrams;
     window.setCrossSections = setCrossSections;
     window.getSelfWeightLineLoads = (spans,name)=>getSelfWeightLineLoads(spans,name);
