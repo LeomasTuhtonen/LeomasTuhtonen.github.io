@@ -153,6 +153,9 @@ function close(actual, expected, tol, msg){
   const first=computeFrameResults(frame);
   const second=computeFrameResultsPDelta_Kg(frame);
   assert(Math.abs(second.displacements[3])>Math.abs(first.displacements[3]),'P-Delta should increase sway');
+  const diag=second.diagrams || computeFrameDiagrams(frame,second,1);
+  const nonZero=diag[0].moment.some(pt=>Math.abs(pt.y)>1e-8);
+  assert(nonZero,'P-Delta diagrams should not be zero');
 })();
 
 // Basic LBA test

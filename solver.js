@@ -814,7 +814,9 @@ function computeFrameResultsPDelta(frame, opts={}) {
             if (maxDiff < tol * height) {
                 const finalFrame = JSON.parse(JSON.stringify(base));
                 if (newExtra.length) finalFrame.loads = (finalFrame.loads || []).concat(newExtra);
-                return computeFrameResults(finalFrame);
+                const finalRes = computeFrameResults(finalFrame);
+                const diagrams = computeFrameDiagrams(finalFrame, finalRes, 1);
+                return { ...finalRes, diagrams };
             }
         }
 
@@ -823,7 +825,9 @@ function computeFrameResultsPDelta(frame, opts={}) {
     }
     const finalFrame = JSON.parse(JSON.stringify(base));
     if (extra.length) finalFrame.loads = (finalFrame.loads || []).concat(extra);
-    return computeFrameResults(finalFrame);
+    const finalRes = computeFrameResults(finalFrame);
+    const diagrams = computeFrameDiagrams(finalFrame, finalRes, 1);
+    return { ...finalRes, diagrams };
 }
 
 function geometricStiffnessMatrix(N, L) {
@@ -947,7 +951,8 @@ function computeFrameResultsPDelta_Kg(baseFrame, opts = {}) {
         for (let i = 0; i < dof; i++) maxDiff = Math.max(maxDiff, Math.abs(u[i] - uPrev[i]));
         if (maxDiff < tol) {
             const reactions = multiplyMatrixVector(Ktot, u).map((v, i) => v - F[i]);
-            return { displacements: u, reactions };
+            const diagrams = computeFrameDiagrams(frame, { displacements: u }, 1);
+            return { displacements: u, reactions, diagrams };
         }
 
         uPrev = u.slice();
@@ -955,7 +960,8 @@ function computeFrameResultsPDelta_Kg(baseFrame, opts = {}) {
     }
     console.warn('P-Δ Newton loop did not converge');
     const reactions = multiplyMatrixVector(Klin, uPrev).map((v, i) => v - F[i]);
-    return { displacements: uPrev, reactions };
+    const diagrams = computeFrameDiagrams(frame, { displacements: uPrev }, 1);
+    return { displacements: uPrev, reactions, diagrams };
 }
 
 function computeFrameBucklingModes(frame, numModes = 10) {
