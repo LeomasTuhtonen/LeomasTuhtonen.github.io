@@ -1750,7 +1750,7 @@ function solveFrame(){
         modeSel.style.display='inline-block';
         alphaEl.style.display='inline-block';
         const mode=parseInt(modeSel.value||'1')-1;
-        const res=computeFrameResultsLBA(frame,mode);
+        const res=window.computeFrameResultsLBA(frame,mode);
         if(!res) return;
         if(modeSel.options.length!==res.modes.length){
             modeSel.innerHTML=res.modes.map((_,i)=>`<option value="${i+1}">Mode ${i+1}</option>`).join('');
