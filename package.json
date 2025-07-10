@@ -5,7 +5,7 @@
     "test": "node test/test.js",
     "lint": "eslint .",
     "test:integration": "node test/integration.js",
-    "lint:strict": "eslint .",
+    "lint:strict": "eslint . --rule 'no-use-before-define:error' --rule 'no-undef:error'",
     "test:smoke": "node ./scripts/run-smoke-tests.js"
   },
   "devDependencies": {
