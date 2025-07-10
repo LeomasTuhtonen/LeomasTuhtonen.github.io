@@ -826,7 +826,10 @@ function computeFrameBucklingModes(frame, numModes = 10) {
     });
     const { Kmod, indices } = applyBC(K, new Array(dof).fill(0), fixed);
     const Kgmod = indices.map(i => indices.map(j => Kg[i][j]));
-    const { Matrix, EigenvalueDecomposition, inverse } = require('ml-matrix');
+    const { Matrix, EigenvalueDecomposition, inverse } =
+        typeof require !== 'undefined'
+            ? require('ml-matrix')
+            : globalThis.mlMatrix;
     const ev = new EigenvalueDecomposition(inverse(new Matrix(Kmod)).mmul(new Matrix(Kgmod)));
     const vals = Array.from(ev.realEigenvalues);
     const vecs = ev.eigenvectorMatrix.to2DArray();
