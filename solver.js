@@ -851,7 +851,7 @@ function computeFrameResultsLBA(frame, mode = 0) {
     res.indices.forEach((idx, i) => { disp[idx] = res.vectors[m][i]; });
     const maxAbs = Math.max(...disp.map(v => Math.abs(v)));
     if (maxAbs > 0) {
-        for (let i = 0; i < disp.length; i++) disp[i] /= maxAbs;
+        for (let i = 0; i < disp.length; i++) disp[i] = (disp[i] / maxAbs) / 1000;
     }
     return { displacements: disp, alpha: res.alphas[m], modes: res.alphas };
 }
