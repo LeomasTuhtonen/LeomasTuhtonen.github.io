@@ -1,5 +1,8 @@
 export default [
   {
+    ignores: ['libs/**']
+  },
+  {
     files: ['**/*.js'],
     languageOptions: {
       ecmaVersion: 2020,
