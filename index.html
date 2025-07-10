@@ -336,7 +336,10 @@
                     <select id="frameAnalysisType" onchange="solveFrame()">
                         <option value="first">1st order analysis</option>
                         <option value="pdelta">P-Delta</option>
+                        <option value="lba">Linear buckling</option>
                     </select>
+                    <select id="lbaModeSelect" style="display:none;" onchange="solveFrame()"></select>
+                    <span id="lbaAlpha" style="margin-left:6px;font-size:12px;display:none;"></span>
                 </div>
                 <canvas id="frameCanvas" width="650" height="650" style="border:1px solid #ccc; width:100%; height:100%;"></canvas>
             </div>
@@ -1741,6 +1744,29 @@ function solveFrame(){
     const mLine=frameState.memberLineLoads.map(l=>({beam:l.beam,start:l.start,end:l.end,wX1:(l.wX1||0)*1000,wX2:(l.wX2||0)*1000,wY1:(l.wY1||0)*1000,wY2:(l.wY2||0)*1000}));
     const frame={nodes:frameState.nodes,beams,supports,loads,memberPointLoads:mPoint,memberLineLoads:mLine,E:state.E};
     const analysis=document.getElementById('frameAnalysisType')?.value||'first';
+    const modeSel=document.getElementById('lbaModeSelect');
+    const alphaEl=document.getElementById('lbaAlpha');
+    if(analysis==='lba'){
+        modeSel.style.display='inline-block';
+        alphaEl.style.display='inline-block';
+        const mode=parseInt(modeSel.value||'1')-1;
+        const res=computeFrameResultsLBA(frame,mode);
+        if(!res) return;
+        if(modeSel.options.length!==res.modes.length){
+            modeSel.innerHTML=res.modes.map((_,i)=>`<option value="${i+1}">Mode ${i+1}</option>`).join('');
+            modeSel.value=String(mode+1);
+        }
+        alphaEl.innerHTML=`α<sub>cr</sub> = ${res.alpha.toFixed(2)}`;
+        frameRes=res;
+        frameDiags=[];
+        drawFrame(res,[]);
+        updateFrameReactions(null);
+        updateFrameWarning();
+        return;
+    } else {
+        if(modeSel){modeSel.style.display='none';}
+        if(alphaEl){alphaEl.style.display='none';alphaEl.innerHTML='';}
+    }
     const res=analysis==='pdelta'?computeFrameResultsPDelta(frame):computeFrameResults(frame);
     if(!res) return;
     updateFrameReactions(res);
