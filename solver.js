@@ -850,19 +850,12 @@ function geometricStiffnessMatrix(N, L) {
     return kg;
 }
 
-function geometricStiffnessCondensed(P, L, c, s, rel = {}) {
+function geometricStiffnessCondensed(P, L, c, s /* , rel */) {
+    // Start from the unreleased geometric stiffness matrix and let the
+    // elastic matrix handle any end releases. Mixing the two here leads
+    // to an ill‑conditioned global Kg.
     const kgLocal = geometricStiffnessMatrix(P, L);
-    const noRel = !rel || Object.values(rel).every(v => v === undefined);
-    let kgCond;
-    if (noRel) {
-        kgCond = kgLocal;
-    } else {
-        const { KbbInv, Kbn } = frameElementWithReleases(1, 1, 1, L, rel);
-        const Knb = Kbn.map(r => r.slice());
-        const Knn = kgLocal.map(r => r.slice());
-        const sub = multiplyMatrix(multiplyMatrix(Knb, KbbInv), Kbn);
-        kgCond = Knn.map((row, i) => row.map((v, j) => v - sub[i][j]));
-    }
+    const kgCond = kgLocal; // skip static condensation
     const T = [
         [c, s, 0, 0, 0, 0], [-s, c, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
         [0, 0, 0, c, s, 0], [0, 0, 0, -s, c, 0], [0, 0, 0, 0, 0, 1]
