@@ -1,5 +1,5 @@
 const assert = require('assert');
-const {computeResults, computeSectionDesign, computeFrameResults, computeFrameResultsPDelta, computeFrameResultsLBA, computeFrameDiagrams} = require('../solver');
+const {computeResults, computeSectionDesign, computeFrameResults, computeFrameResultsPDelta_Kg, computeFrameResultsLBA, computeFrameDiagrams} = require('../solver');
 
 function close(actual, expected, tol, msg){
   if(Math.abs(actual-expected) > tol) throw new Error(msg+` expected ${expected} got ${actual}`);
@@ -151,7 +151,7 @@ function close(actual, expected, tol, msg){
     loads:[{node:1,Px:1000,Py:-10000}]
   };
   const first=computeFrameResults(frame);
-  const second=computeFrameResultsPDelta(frame);
+  const second=computeFrameResultsPDelta_Kg(frame);
   assert(Math.abs(second.displacements[3])>Math.abs(first.displacements[3]),'P-Delta should increase sway');
 })();
 

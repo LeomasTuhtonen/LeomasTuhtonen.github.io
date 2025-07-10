@@ -65,6 +65,7 @@ function multiplyMatrix(A,B){
 }
 
 
+
 function trapezoidalLineLoadForces(wX1, wY1, wX2, wY2, L, start=0, end=L, c, s){
     if(end <= start) return [0,0,0,0,0,0];
     start = Math.max(0,start); end = Math.min(L,end);
@@ -93,6 +94,68 @@ function trapezoidalLineLoadForces(wX1, wY1, wX2, wY2, L, start=0, end=L, c, s){
     const Fy2=3*I2/(L*L) - 2*I3/(L*L*L);
     const Mz2=-I2/L + I3/(L*L);
     return [Fx1,Fy1,Mz1,Fx2,Fy2,Mz2];
+}
+
+function clone2D(M){
+    return M.map(r=>r.slice());
+}
+
+function addMatrices(A,B){
+    return A.map((row,i)=>row.map((v,j)=>v+B[i][j]));
+}
+
+function buildGlobalLoadVector(frame){
+    const n=frame.nodes.length; const F=new Array(3*n).fill(0);
+    frame.loads?.forEach(l=>{
+        if(l.Px) F[3*l.node]+=l.Px;
+        if(l.Py) F[3*l.node+1]+=l.Py;
+        if(l.Mz) F[3*l.node+2]+=l.Mz;
+    });
+    (frame.memberPointLoads||[]).forEach(l=>{
+        const el=frame.beams[l.beam]; if(!el||el.on===false) return;
+        const p1=frame.nodes[el.n1], p2=frame.nodes[el.n2];
+        const dx=p2.x-p1.x, dy=p2.y-p1.y; const L=Math.hypot(dx,dy); if(L===0) return;
+        const c=dx/L, s=dy/L; const a=l.x, b=L-a;
+        const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
+        const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
+        const local=[0,0,0,0,0,0];
+        if(FxLocal){local[0]+=FxLocal*(1-a/L); local[3]+=FxLocal*(a/L);}
+        if(FyLocal){const P=FyLocal; local[1]+=P*b*b*(3*a+b)/Math.pow(L,3); local[2]+=P*a*b*b/Math.pow(L,2); local[4]+=P*a*a*(3*b+a)/Math.pow(L,3); local[5]+=-P*a*a*b/Math.pow(L,2);} 
+        if(l.Mz){local[2]+=l.Mz*(1-a/L); local[5]+=l.Mz*(a/L);} 
+        const T=[[c,s,0,0,0,0],[-s,c,0,0,0,0],[0,0,1,0,0,0],[0,0,0,c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
+        const gl=multiplyMatrixVector(transpose(T),local);
+        const dofs=[3*el.n1,3*el.n1+1,3*el.n1+2,3*el.n2,3*el.n2+1,3*el.n2+2];
+        for(let i=0;i<6;i++) F[dofs[i]]+=gl[i];
+    });
+    (frame.memberLineLoads||[]).forEach(l=>{
+        const el=frame.beams[l.beam]; if(!el||el.on===false) return;
+        const p1=frame.nodes[el.n1], p2=frame.nodes[el.n2];
+        const dx=p2.x-p1.x, dy=p2.y-p1.y; const L=Math.hypot(dx,dy); if(L===0) return;
+        const c=dx/L, s=dy/L;
+        const start=l.start===undefined?0:l.start; const end=l.end===undefined?L:l.end;
+        const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
+        const T=[[c,s,0,0,0,0],[-s,c,0,0,0,0],[0,0,1,0,0,0],[0,0,0,c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
+        const gl=multiplyMatrixVector(transpose(T),fe);
+        const dofs=[3*el.n1,3*el.n1+1,3*el.n1+2,3*el.n2,3*el.n2+1,3*el.n2+2];
+        for(let i=0;i<6;i++) F[dofs[i]]+=gl[i];
+    });
+    return F;
+}
+
+function collectFixedDOFs(frame){
+    const fixed=[];
+    frame.supports.forEach(s=>{if(s.fixX) fixed.push(3*s.node); if(s.fixY) fixed.push(3*s.node+1); if(s.fixRot) fixed.push(3*s.node+2);});
+    return fixed;
+}
+
+function buildFmod(F,fixed){
+    const r=[]; for(let i=0;i<F.length;i++) if(!fixed.includes(i)) r.push(F[i]);
+    return r;
+}
+
+function restoreFullVector(uFree,fixed,dof){
+    const full=new Array(dof).fill(0); let c=0; for(let i=0;i<dof;i++){if(!fixed.includes(i)) full[i]=uFree[c++];}
+    return full;
 }
 
 let crossSectionMap = {};
@@ -483,7 +546,10 @@ function computeFrameResults(frame){
         const E = el.E || frame.E || 210e9;
         const I = el.I || frame.I || 1e-6;
         const A = el.A || frame.A || 0.001;
-        const rel = { cz1: el.cz1, cz2: el.cz2 };
+        const rel = {
+            kx1: el.kx1, ky1: el.ky1, cz1: el.cz1,
+            kx2: el.kx2, ky2: el.ky2, cz2: el.cz2
+        };
 
         // Use condensed element stiffness matrix with releases
         const {Kcond} = frameElementWithReleases(E, A, I, L, rel);
@@ -590,7 +656,10 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         const E = el.E || frame.E || 210e9;
         const I = el.I || frame.I || 1e-6;
         const A = el.A || frame.A || 0.001;
-        const rel = { cz1: el.cz1, cz2: el.cz2 };
+        const rel = {
+            kx1: el.kx1, ky1: el.ky1, cz1: el.cz1,
+            kx2: el.kx2, ky2: el.ky2, cz2: el.cz2
+        };
 
         // Use the same condensed stiffness as in the analysis
         const {Kcond} = frameElementWithReleases(E, A, I, L, rel);
@@ -777,6 +846,118 @@ function geometricStiffnessMatrix(N, L) {
     return kg;
 }
 
+function geometricStiffnessCondensed(P, L, c, s, rel = {}) {
+    const kgLocal = geometricStiffnessMatrix(P, L);
+    const noRel = !rel || Object.values(rel).every(v => v === undefined);
+    let kgCond;
+    if (noRel) {
+        kgCond = kgLocal;
+    } else {
+        const { KbbInv, Kbn } = frameElementWithReleases(1, 1, 1, L, rel);
+        const Knb = Kbn.map(r => r.slice());
+        const Knn = kgLocal.map(r => r.slice());
+        const sub = multiplyMatrix(multiplyMatrix(Knb, KbbInv), Kbn);
+        kgCond = Knn.map((row, i) => row.map((v, j) => v - sub[i][j]));
+    }
+    const T = [
+        [c, s, 0, 0, 0, 0], [-s, c, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
+        [0, 0, 0, c, s, 0], [0, 0, 0, -s, c, 0], [0, 0, 0, 0, 0, 1]
+    ];
+    return multiplyMatrix(transpose(T), multiplyMatrix(kgCond, T));
+}
+
+function assembleLinearK(frame) {
+    const n = frame.nodes.length;
+    const dof = 3 * n;
+    const K = Array.from({ length: dof }, () => new Array(dof).fill(0));
+    frame.beams.forEach(el => {
+        if (el.on === false) return;
+        const { n1, n2 } = el;
+        const p1 = frame.nodes[n1], p2 = frame.nodes[n2];
+        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+        const L = Math.hypot(dx, dy); if (L < 1e-9) return;
+        const c = dx / L, s = dy / L;
+        const E = el.E || frame.E || 210e9;
+        const I = el.I || frame.I || 1e-6;
+        const A = el.A || frame.A || 0.001;
+        const rel = {
+            kx1: el.kx1, ky1: el.ky1, cz1: el.cz1,
+            kx2: el.kx2, ky2: el.ky2, cz2: el.cz2
+        };
+        const { Kcond } = frameElementWithReleases(E, A, I, L, rel);
+        const T = [
+            [c, s, 0, 0, 0, 0], [-s, c, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
+            [0, 0, 0, c, s, 0], [0, 0, 0, -s, c, 0], [0, 0, 0, 0, 0, 1]
+        ];
+        const kG = multiplyMatrix(transpose(T), multiplyMatrix(Kcond, T));
+        const dofs = [3 * n1, 3 * n1 + 1, 3 * n1 + 2, 3 * n2, 3 * n2 + 1, 3 * n2 + 2];
+        for (let i = 0; i < 6; i++)
+            for (let j = 0; j < 6; j++)
+                K[dofs[i]][dofs[j]] += kG[i][j];
+    });
+    return K;
+}
+
+function computeFrameResultsPDelta_Kg(baseFrame, opts = {}) {
+    const tol = opts.tolerance || 1e-3;
+    const maxIter = opts.maxIter || 20;
+
+    const frame = JSON.parse(JSON.stringify(baseFrame));
+    const n = frame.nodes.length;
+    const dof = 3 * n;
+
+    const Klin = assembleLinearK(frame);
+    const F = buildGlobalLoadVector(frame);
+    const fixed = collectFixedDOFs(frame);
+    applyBC(Klin, F, fixed);
+
+    let res = computeFrameResults(frame);
+    let uPrev = res.displacements.slice();
+
+    for (let iter = 0; iter < maxIter; iter++) {
+        const diags = computeFrameDiagrams(frame, res, 1);
+        const axial = diags.map(d => d ? 0.5 * (d.normal[0].y + d.normal.at(-1).y) : 0);
+
+        const Kg = Array.from({ length: dof }, () => new Array(dof).fill(0));
+        frame.beams.forEach((el, idx) => {
+            if (el.on === false) return;
+            const { n1, n2 } = el;
+            const p1 = frame.nodes[n1], p2 = frame.nodes[n2];
+            const dx = p2.x - p1.x, dy = p2.y - p1.y;
+            const L = Math.hypot(dx, dy); if (L < 1e-9) return;
+            const c = dx / L, s = dy / L;
+            const P = -axial[idx]; if (Math.abs(P) < 1e-12) return;
+            const rel = {
+                kx1: el.kx1, ky1: el.ky1, cz1: el.cz1,
+                kx2: el.kx2, ky2: el.ky2, cz2: el.cz2
+            };
+            const kgG = geometricStiffnessCondensed(P, L, c, s, rel);
+            const dofs = [3 * n1, 3 * n1 + 1, 3 * n1 + 2, 3 * n2, 3 * n2 + 1, 3 * n2 + 2];
+            for (let i = 0; i < 6; i++)
+                for (let j = 0; j < 6; j++)
+                    Kg[dofs[i]][dofs[j]] += kgG[i][j];
+        });
+
+        const Ktot = addMatrices(Klin, Kg);
+        const { Kmod } = applyBC(Ktot, F, fixed);
+        const uFree = gaussSolve(clone2D(Kmod), buildFmod(F, fixed));
+        const u = restoreFullVector(uFree, fixed, dof);
+
+        let maxDiff = 0;
+        for (let i = 0; i < dof; i++) maxDiff = Math.max(maxDiff, Math.abs(u[i] - uPrev[i]));
+        if (maxDiff < tol) {
+            const reactions = multiplyMatrixVector(Ktot, u).map((v, i) => v - F[i]);
+            return { displacements: u, reactions };
+        }
+
+        uPrev = u.slice();
+        res = { displacements: u };
+    }
+    console.warn('P-Δ Newton loop did not converge');
+    const reactions = multiplyMatrixVector(Klin, uPrev).map((v, i) => v - F[i]);
+    return { displacements: uPrev, reactions };
+}
+
 function computeFrameBucklingModes(frame, numModes = 10) {
     const baseRes = computeFrameResults(frame);
     if (!baseRes) return null;
@@ -802,7 +983,10 @@ function computeFrameBucklingModes(frame, numModes = 10) {
         const E = el.E || frame.E || 210e9;
         const I = el.I || frame.I || 1e-6;
         const A = el.A || frame.A || 0.001;
-        const rel = { cz1: el.cz1, cz2: el.cz2 };
+        const rel = {
+            kx1: el.kx1, ky1: el.ky1, cz1: el.cz1,
+            kx2: el.kx2, ky2: el.ky2, cz2: el.cz2
+        };
         const { Kcond } = frameElementWithReleases(E, A, I, L, rel);
         const T = [
             [c, s, 0, 0, 0, 0], [-s, c, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
@@ -862,6 +1046,7 @@ if (typeof module !== 'undefined' && module.exports) {
         computeDiagrams,
         computeFrameResults,
         computeFrameResultsPDelta,
+        computeFrameResultsPDelta_Kg,
         computeFrameResultsLBA,
         computeFrameBucklingModes,
         computeFrameDiagrams,
@@ -879,6 +1064,7 @@ if (typeof window !== 'undefined') {
     window.computeDiagrams = computeDiagrams;
     window.computeFrameResults = computeFrameResults;
     window.computeFrameResultsPDelta = computeFrameResultsPDelta;
+    window.computeFrameResultsPDelta_Kg = computeFrameResultsPDelta_Kg;
     window.computeFrameResultsLBA = computeFrameResultsLBA;
     window.computeFrameBucklingModes = computeFrameBucklingModes;
     window.computeFrameDiagrams = computeFrameDiagrams;

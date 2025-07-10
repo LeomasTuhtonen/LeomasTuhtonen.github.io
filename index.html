@@ -1769,7 +1769,7 @@ function solveFrame(){
         if(modeSel){modeSel.style.display='none';}
         if(alphaEl){alphaEl.style.display='none';alphaEl.innerHTML='';}
     }
-    const res=analysis==='pdelta'?computeFrameResultsPDelta(frame):computeFrameResults(frame);
+    const res=analysis==='pdelta'?computeFrameResultsPDelta_Kg(frame):computeFrameResults(frame);
     if(!res) return;
     updateFrameReactions(res);
     updateFrameWarning();
