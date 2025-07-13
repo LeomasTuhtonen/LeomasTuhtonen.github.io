@@ -535,22 +535,31 @@ function frameElementWithReleases(E,A,I,L,rel){
     const kx2=rel?.kx2===undefined?INF:(rel.kx2<0?INF:rel.kx2);
     const ky2=rel?.ky2===undefined?INF:(rel.ky2<0?INF:rel.ky2);
     const cz2=rel?.cz2===undefined?INF:(rel.cz2<0?INF:rel.cz2);
+
     const K=Array.from({length:12},()=>new Array(12).fill(0));
+    // Place the element stiffness into the internal DOF block
     for(let i=0;i<6;i++)
         for(let j=0;j<6;j++)
-            K[i][j]=kLocal[i][j];
+            K[i+6][j+6]=kLocal[i][j];
+
+    const EPS = 1e-9;
     const addSpr=(k,n,b)=>{
-        if(k===0) return;
+        if(k===0){
+            // completely released: keep a tiny stiffness on the node
+            K[n][n]+=EPS;
+            return;
+        }
         K[n][n]+=k; K[b][b]+=k; K[n][b]-=k; K[b][n]-=k;
     };
     addSpr(kx1,0,6); addSpr(ky1,1,7); addSpr(cz1,2,8);
     addSpr(kx2,3,9); addSpr(ky2,4,10); addSpr(cz2,5,11);
+
     const Knn=K.slice(0,6).map(r=>r.slice(0,6));
     const Knb=K.slice(0,6).map(r=>r.slice(6));
     const Kbn=K.slice(6).map(r=>r.slice(0,6));
     const Kbb=K.slice(6).map(r=>r.slice(6));
-    const KbbInv=Array.from({length:6},()=>new Array(6).fill(0));
-    for(let i=0;i<6;i++) if(Kbb[i][i]!==0) KbbInv[i][i]=1/Kbb[i][i];
+
+    const KbbInv=invertMatrix(Kbb);
     const temp=multiplyMatrix(Knb,KbbInv);
     const sub=multiplyMatrix(temp,Kbn);
     const Kcond=Knn.map((row,i)=>row.map((v,j)=>v-sub[i][j]));
