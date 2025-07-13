@@ -112,11 +112,20 @@ function addMatrices(A,B){
     return A.map((row,i)=>row.map((v,j)=>v+B[i][j]));
 }
 
-function condenseLoadVector(_KbbInv, _Kbn, fFull){
-    // After fixing frameElementWithReleases the local fixed-end forces are
-    // already expressed in terms of the retained DOFs. No extra load
-    // transformation is required, so simply return the input vector.
-    return fFull.slice();
+function condenseLoadVector(KbbInv, Kbn, fFull){
+    const temp = new Array(6).fill(0);
+    for (let i = 0; i < 6; i++) {
+        let sum = 0;
+        for (let j = 0; j < 6; j++) sum += KbbInv[i][j] * fFull[j];
+        temp[i] = sum;
+    }
+    const fCond = new Array(6).fill(0);
+    for (let i = 0; i < 6; i++) {
+        let sum = 0;
+        for (let j = 0; j < 6; j++) sum += Kbn[i][j] * temp[j];
+        fCond[i] -= sum;
+    }
+    return fCond;
 }
 
 function buildGlobalLoadVector(frame){
