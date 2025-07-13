@@ -64,6 +64,14 @@ function multiplyMatrix(A,B){
     return r;
 }
 
+function integrateLinear(a,b,wa,wb,n){
+    const F=(x,p)=>Math.pow(x,p+1)/(p+1);
+    const base=wa*(F(b,n)-F(a,n));
+    const m=(wb-wa)/(b-a);
+    const part=(F(b,n+1)-F(a,n+1))-a*(F(b,n)-F(a,n));
+    return base+m*part;
+}
+
 
 
 function trapezoidalLineLoadForces(wX1, wY1, wX2, wY2, L, start=0, end=L, c, s){
@@ -729,10 +737,10 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         const fFinalLocal = forcesFromDisp.map((f, i) => f - FEF[i]);
 
         // --- FIX #2: Correct sign convention for internal forces ---
-        const N1 = fFinalLocal[0], V1 = fFinalLocal[1], M1 = fFinalLocal[2];
+        const N1 = fFinalLocal[0], V1 = fFinalLocal[1], M1 = fFinalLocal[2], M2 = fFinalLocal[5];
         let normal = N1;
         let shear = -V1;       // diagram sign (+ down)
-        let moment = M1;
+        let moment = -M1;
 
         const events = new Set([0, L]);
         for (let i = 1; i <= divisions; i++) events.add(L * i / divisions);
@@ -750,27 +758,34 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
             const x1 = positions[i];
             const x2 = positions[i + 1];
             const dx = x2 - x1;
-            const midX = (x1 + x2) / 2;
 
             if (dx < 1e-9) continue;
 
-            let wX_total = 0, wY_total = 0;
+            let intAx = 0, intWy = 0, intWyX = 0;
             lineLoads.forEach(l => {
                 const start = l.start || 0;
                 const end   = l.end   === undefined ? L : l.end;
-                if (midX >= start && midX < end) {
-                    const t  = (midX - start) / (end - start || 1);
-                    const wX = (l.wX1 || 0)*(1 - t) + (l.wX2 || 0)*t;
-                    const wY = (l.wY1 || 0)*(1 - t) + (l.wY2 || 0)*t;
-                    wX_total +=  c*wX + s*wY;      // axial component in local axes
-                    wY_total += -s*wX + c*wY;      // transverse component
-                }
+                const segStart = Math.max(x1, start);
+                const segEnd   = Math.min(x2, end);
+                if (segEnd <= segStart) return;
+                const denom = end - start || 1;
+                const wX_s = (l.wX1 || 0) + ((l.wX2 || 0)-(l.wX1 || 0)) * ((segStart - start)/denom);
+                const wX_e = (l.wX1 || 0) + ((l.wX2 || 0)-(l.wX1 || 0)) * ((segEnd   - start)/denom);
+                const wY_s = (l.wY1 || 0) + ((l.wY2 || 0)-(l.wY1 || 0)) * ((segStart - start)/denom);
+                const wY_e = (l.wY1 || 0) + ((l.wY2 || 0)-(l.wY1 || 0)) * ((segEnd   - start)/denom);
+                const wx_s =  c*wX_s + s*wY_s;
+                const wx_e =  c*wX_e + s*wY_e;
+                const wy_s = -s*wX_s + c*wY_s;
+                const wy_e = -s*wX_e + c*wY_e;
+                intAx  += integrateLinear(segStart, segEnd, wx_s, wx_e, 0);
+                intWy  += integrateLinear(segStart, segEnd, wy_s, wy_e, 0);
+                intWyX += integrateLinear(segStart, segEnd, wy_s, wy_e, 1);
             });
 
             const shear_at_x1 = shear;
-            normal -= wX_total * dx;
-            shear -= wY_total * dx;
-            moment += shear_at_x1 * dx - 0.5 * wY_total * dx * dx;
+            normal -= intAx;
+            shear  -= intWy;
+            moment += shear_at_x1 * dx - (intWyX - x1*intWy);
 
             normalArr.push({x: x2, y: normal});
             shearArr.push({x: x2, y: shear});
@@ -788,6 +803,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
                 momentArr.push({x: x2, y: moment});
             });
         }
+        if(momentArr.length) momentArr[momentArr.length-1].y = -M2;
         // Shear and moment arrays are already in the conventional sign
         // orientation, so they can be pushed directly without adjustment.
         diags.push({ shear: shearArr, moment: momentArr, normal: normalArr });
