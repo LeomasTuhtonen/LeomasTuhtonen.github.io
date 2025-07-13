@@ -112,20 +112,11 @@ function addMatrices(A,B){
     return A.map((row,i)=>row.map((v,j)=>v+B[i][j]));
 }
 
-function condenseLoadVector(KbbInv, Kbn, fFull){
-    const temp=new Array(6).fill(0);
-    for(let i=0;i<6;i++){
-        let sum=0;
-        for(let j=0;j<6;j++) sum+=KbbInv[i][j]*fFull[j];
-        temp[i]=sum;
-    }
-    const fCond=new Array(6).fill(0);
-    for(let i=0;i<6;i++){
-        let sum=0;
-        for(let j=0;j<6;j++) sum+=Kbn[i][j]*temp[j];
-        fCond[i]-=sum;
-    }
-    return fCond;
+function condenseLoadVector(_KbbInv, _Kbn, fFull){
+    // After fixing frameElementWithReleases the local fixed-end forces are
+    // already expressed in terms of the retained DOFs. No extra load
+    // transformation is required, so simply return the input vector.
+    return fFull.slice();
 }
 
 function buildGlobalLoadVector(frame){
@@ -535,7 +526,9 @@ function frameElementWithReleases(E,A,I,L,rel){
     const ky2=rel?.ky2===undefined?INF:(rel.ky2<0?INF:rel.ky2);
     const cz2=rel?.cz2===undefined?INF:(rel.cz2<0?INF:rel.cz2);
     const K=Array.from({length:12},()=>new Array(12).fill(0));
-    for(let i=0;i<6;i++) for(let j=0;j<6;j++) K[6+i][6+j]=kLocal[i][j];
+    for(let i=0;i<6;i++)
+        for(let j=0;j<6;j++)
+            K[i][j]=kLocal[i][j];
     const addSpr=(k,n,b)=>{
         if(k===0) return;
         K[n][n]+=k; K[b][b]+=k; K[n][b]-=k; K[b][n]-=k;
@@ -546,7 +539,8 @@ function frameElementWithReleases(E,A,I,L,rel){
     const Knb=K.slice(0,6).map(r=>r.slice(6));
     const Kbn=K.slice(6).map(r=>r.slice(0,6));
     const Kbb=K.slice(6).map(r=>r.slice(6));
-    const KbbInv=invertMatrix(Kbb);
+    const KbbInv=Array.from({length:6},()=>new Array(6).fill(0));
+    for(let i=0;i<6;i++) if(Kbb[i][i]!==0) KbbInv[i][i]=1/Kbb[i][i];
     const temp=multiplyMatrix(Knb,KbbInv);
     const sub=multiplyMatrix(temp,Kbn);
     const Kcond=Knn.map((row,i)=>row.map((v,j)=>v-sub[i][j]));
