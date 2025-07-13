@@ -173,3 +173,31 @@ function close(actual, expected, tol, msg){
     assert(res.modes[i]>=res.modes[i-1],'modes sorted');
   }
 })();
+
+// Point load reaction should equal applied load
+(function testCantileverPointLoad(){
+  const frame={
+    nodes:[{x:0,y:0},{x:1,y:0}],
+    beams:[{n1:0,n2:1}],
+    supports:[{node:0,fixX:true,fixY:true,fixRot:true}],
+    loads:[],
+    memberPointLoads:[{beam:0,x:0.5,Fy:-1000}]
+  };
+  const res=computeFrameResults(frame);
+  close(res.reactions[1], 1000, 1e-6, 'cantilever vertical reaction');
+})();
+
+// Uniform line load symmetry
+(function testUniformLineLoadSymmetry(){
+  const L=2;
+  const frame={
+    nodes:[{x:0,y:0},{x:L,y:0}],
+    beams:[{n1:0,n2:1}],
+    supports:[{node:0,fixY:true,fixRot:true},{node:1,fixY:true,fixRot:true}],
+    loads:[],
+    memberLineLoads:[{beam:0,start:0,end:L,wY1:-1000,wY2:-1000}]
+  };
+  const res=computeFrameResults(frame);
+  close(res.reactions[1], 1000*L/2, 1e-6, 'left uniform reaction');
+  close(res.reactions[4], 1000*L/2, 1e-6, 'right uniform reaction');
+})();
