@@ -112,7 +112,7 @@ function addMatrices(A,B){
     return A.map((row,i)=>row.map((v,j)=>v+B[i][j]));
 }
 
-function condenseLoadVector(KbbInv, Kbn, fFull){
+function condenseLoadVector(KbbInv, Knb, fFull){
     const temp = new Array(6).fill(0);
     for (let i = 0; i < 6; i++) {
         let sum = 0;
@@ -123,7 +123,7 @@ function condenseLoadVector(KbbInv, Kbn, fFull){
     for (let i = 0; i < 6; i++) {
         fCond[i] = fFull[i];
         let sum = 0;
-        for (let j = 0; j < 6; j++) sum += Kbn[i][j] * temp[j];
+        for (let j = 0; j < 6; j++) sum += Knb[i][j] * temp[j];
         fCond[i] -= sum;
     }
     return fCond;
@@ -563,7 +563,7 @@ function frameElementWithReleases(E,A,I,L,rel){
     const temp=multiplyMatrix(Knb,KbbInv);
     const sub=multiplyMatrix(temp,Kbn);
     const Kcond=Knn.map((row,i)=>row.map((v,j)=>v-sub[i][j]));
-    return {Kcond,KbbInv,Kbn,kLocal};
+    return {Kcond,KbbInv,Kbn,Knb,kLocal};
 }
 
 function computeFrameResults(frame){
@@ -621,7 +621,7 @@ function computeFrameResults(frame){
         const I=el.I||frame.I||1e-6;
         const A=el.A||frame.A||0.001;
         const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
-        const {KbbInv,Kbn}=frameElementWithReleases(E,A,I,L,rel);
+        const {KbbInv,Kbn,Knb}=frameElementWithReleases(E,A,I,L,rel);
         const hasRelease = el.kx1!==undefined || el.ky1!==undefined ||
                            el.cz1!==undefined || el.kx2!==undefined ||
                            el.ky2!==undefined || el.cz2!==undefined;
@@ -645,7 +645,7 @@ function computeFrameResults(frame){
             local[5]+=l.Mz*(a/L);
         }
         const localCond=hasRelease ?
-            condenseLoadVector(KbbInv,Kbn,local) : local;
+            condenseLoadVector(KbbInv,Knb,local) : local;
         const T=[[ c, s,0,0,0,0],[-s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c, s,0],[0,0,0,-s, c,0],[0,0,0,0,0,1]];
         const gl=multiplyMatrixVector(transpose(T),localCond);
         const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
@@ -663,7 +663,7 @@ function computeFrameResults(frame){
         const I=el.I||frame.I||1e-6;
         const A=el.A||frame.A||0.001;
         const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
-        const {KbbInv,Kbn}=frameElementWithReleases(E,A,I,L,rel);
+        const {KbbInv,Kbn,Knb}=frameElementWithReleases(E,A,I,L,rel);
         const hasRelease = el.kx1!==undefined || el.ky1!==undefined ||
                            el.cz1!==undefined || el.kx2!==undefined ||
                            el.ky2!==undefined || el.cz2!==undefined;
@@ -671,7 +671,7 @@ function computeFrameResults(frame){
         const end=l.end===undefined?L:l.end;
         const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
         const localCond=hasRelease ?
-            condenseLoadVector(KbbInv,Kbn,fe) : fe;
+            condenseLoadVector(KbbInv,Knb,fe) : fe;
         const T=[[ c, s,0,0,0,0],[-s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c, s,0],[0,0,0,-s, c,0],[0,0,0,0,0,1]];
         const gl=multiplyMatrixVector(transpose(T),localCond);
         const dofs=[3*n1,3*n1+1,3*n1+2,3*n2,3*n2+1,3*n2+2];
@@ -718,7 +718,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         };
 
         // Use the same condensed stiffness as in the analysis
-        const {Kcond,KbbInv,Kbn} = frameElementWithReleases(E, A, I, L, rel);
+        const {Kcond,KbbInv,Kbn,Knb} = frameElementWithReleases(E, A, I, L, rel);
         const hasRelease = el.kx1!==undefined || el.ky1!==undefined ||
                            el.cz1!==undefined || el.kx2!==undefined ||
                            el.ky2!==undefined || el.cz2!==undefined;
@@ -739,7 +739,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
             const end=l.end===undefined?L:l.end;
             const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
             const cond=hasRelease ?
-                condenseLoadVector(KbbInv,Kbn,fe) : fe;
+                condenseLoadVector(KbbInv,Knb,fe) : fe;
             for (let i = 0; i < 6; i++) FEF[i] += cond[i];
         });
         (frame.memberPointLoads || []).filter(l => l.beam === idx).forEach(l => {
@@ -755,7 +755,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
                  -P_prp * a * a * b / (L * L)
              ];
             const cond=hasRelease ?
-                condenseLoadVector(KbbInv,Kbn,local) : local;
+                condenseLoadVector(KbbInv,Knb,local) : local;
             for (let i = 0; i < 6; i++) FEF[i] += cond[i];
         });
 
