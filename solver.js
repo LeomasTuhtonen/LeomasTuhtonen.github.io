@@ -958,7 +958,7 @@ function computeFrameResultsPDelta_Kg(baseFrame, opts = {}) {
     const Klin = assembleLinearK(frame);
     const F = buildGlobalLoadVector(frame);
     const fixed = collectFixedDOFs(frame);
-    applyBC(Klin, F, fixed);
+    const { Kmod: KlinRed, Fmod } = applyBC(Klin, F, fixed);
 
     let res = computeFrameResults(frame);
     let uPrev = res.displacements.slice();
@@ -987,9 +987,10 @@ function computeFrameResultsPDelta_Kg(baseFrame, opts = {}) {
                     Kg[dofs[i]][dofs[j]] += kgG[i][j];
         });
 
+        const KgRed = applyBC(Kg, F, fixed).Kmod;
         const Ktot = addMatrices(Klin, Kg);
-        const { Kmod } = applyBC(Ktot, F, fixed);
-        const uFree = gaussSolve(clone2D(Kmod), buildFmod(F, fixed));
+        const KtotRed = addMatrices(KlinRed, KgRed);
+        const uFree = gaussSolve(clone2D(KtotRed), Fmod);
         const u = restoreFullVector(uFree, fixed, dof);
 
         let maxDiff = 0;
