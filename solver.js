@@ -977,10 +977,10 @@ function computeFrameResultsPDelta_Kg(baseFrame, opts = {}) {
     const Klin = assembleLinearK(frame);
     const F = buildGlobalLoadVector(frame);
     const fixed = collectFixedDOFs(frame);
-    applyBC(Klin, F, fixed);
-
-    let res = computeFrameResults(frame);
-    let uPrev = res.displacements.slice();
+    const {Kmod,Fmod} = applyBC(Klin, F, fixed);
+    const uFree0 = gaussSolve(clone2D(Kmod), Fmod);
+    let uPrev = restoreFullVector(uFree0, fixed, dof);
+    let res = { displacements: uPrev };
 
     for (let iter = 0; iter < maxIter; iter++) {
         const diags = computeFrameDiagrams(frame, res, 1);
