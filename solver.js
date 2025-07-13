@@ -121,6 +121,7 @@ function condenseLoadVector(KbbInv, Kbn, fFull){
     }
     const fCond = new Array(6).fill(0);
     for (let i = 0; i < 6; i++) {
+        fCond[i] = fFull[i];
         let sum = 0;
         for (let j = 0; j < 6; j++) sum += Kbn[i][j] * temp[j];
         fCond[i] -= sum;
