@@ -820,7 +820,13 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
                 momentArr.push({x: x2, y: moment});
             });
         }
-        if(momentArr.length) momentArr[momentArr.length-1].y = M2;
+        // The moment distribution is obtained by integrating the
+        // shear force along the element. When no distributed loads
+        // are present, this integration should already yield the
+        // correct end moment, so we do not override the last value
+        // with M2. Overwriting here caused sign flips near member
+        // junctions when multiple elements shared a node.
+        // if(momentArr.length) momentArr[momentArr.length-1].y = M2;
         // Shear and moment arrays are already in the conventional sign
         // orientation, so they can be pushed directly without adjustment.
         diags.push({ shear: shearArr, moment: momentArr, normal: normalArr });
