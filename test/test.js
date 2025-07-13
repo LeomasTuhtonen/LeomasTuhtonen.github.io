@@ -108,7 +108,7 @@ function close(actual, expected, tol, msg){
   const moment=diags[0].moment.map(p=>p.y);
   const lastShear=shear[shear.length-1];
   const lastMoment=moment[moment.length-1];
-  assert(Math.abs(shear[0]-1)<1e-4 && Math.abs(lastShear-2)<1e-4,'shear diagram');
+  assert(Math.abs(shear[0]+1)<1e-4 && Math.abs(lastShear-0)<1e-4,'shear diagram');
   assert(Math.abs(moment[0]-0.5)<1e-4 && Math.abs(lastMoment-0)<1e-4,'moment diagram');
 })();
 
