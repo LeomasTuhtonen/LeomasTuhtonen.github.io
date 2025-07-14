@@ -448,7 +448,10 @@ function computeResults(state){
 function computeDiagrams(state,nodes,reactions){
     const events=[];
     const totalLength=nodes[nodes.length-1];
-    for(let i=0;i<nodes.length;i++) events.push({x:nodes[i],P:reactions[2*i]});
+    for(let i=0;i<nodes.length;i++) {
+        if (state.supportIndices && state.supportIndices.includes(i))
+            events.push({x:nodes[i], P:reactions[2*i]});
+    }
     (state.pointLoads||[]).forEach(p=>events.push({x:p.x,P:p.P}));
     (state.lineLoads||[]).forEach(l=>events.push({x:l.start,w:l.w,start:true}));
     (state.lineLoads||[]).forEach(l=>events.push({x:l.end,w:l.w,end:true}));
@@ -765,7 +768,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         // --- FIX #2: Correct sign convention for internal forces ---
         const N1 = fFinalLocal[0], V1 = fFinalLocal[1], M1 = fFinalLocal[2], M2 = fFinalLocal[5];
         let normal = N1;
-        let shear = -V1; // positive shear should decrease bending moment
+        let shear =  V1; // start with FE shear directly from solver
         let moment = M1;
 
         const events = new Set([0, L]);
