@@ -622,9 +622,12 @@ function computeFrameResults(frame){
         const A=el.A||frame.A||0.001;
         const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
         const {KbbInv,Kbn,Knb}=frameElementWithReleases(E,A,I,L,rel);
-        const hasRelease = el.kx1!==undefined || el.ky1!==undefined ||
-                           el.cz1!==undefined || el.kx2!==undefined ||
-                           el.ky2!==undefined || el.cz2!==undefined;
+        const hasRelease = (el.kx1 !== undefined && el.kx1 >= 0) ||
+                           (el.ky1 !== undefined && el.ky1 >= 0) ||
+                           (el.cz1 !== undefined && el.cz1 >= 0) ||
+                           (el.kx2 !== undefined && el.kx2 >= 0) ||
+                           (el.ky2 !== undefined && el.ky2 >= 0) ||
+                           (el.cz2 !== undefined && el.cz2 >= 0);
         const a=l.x; const b=L-a;
         const local=[0,0,0,0,0,0];
         const FxLocal=c*(l.Fx||0)+s*(l.Fy||0);
@@ -664,9 +667,12 @@ function computeFrameResults(frame){
         const A=el.A||frame.A||0.001;
         const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
         const {KbbInv,Kbn,Knb}=frameElementWithReleases(E,A,I,L,rel);
-        const hasRelease = el.kx1!==undefined || el.ky1!==undefined ||
-                           el.cz1!==undefined || el.kx2!==undefined ||
-                           el.ky2!==undefined || el.cz2!==undefined;
+        const hasRelease = (el.kx1 !== undefined && el.kx1 >= 0) ||
+                           (el.ky1 !== undefined && el.ky1 >= 0) ||
+                           (el.cz1 !== undefined && el.cz1 >= 0) ||
+                           (el.kx2 !== undefined && el.kx2 >= 0) ||
+                           (el.ky2 !== undefined && el.ky2 >= 0) ||
+                           (el.cz2 !== undefined && el.cz2 >= 0);
         const start=l.start===undefined?0:l.start;
         const end=l.end===undefined?L:l.end;
         const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
@@ -719,9 +725,12 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
 
         // Use the same condensed stiffness as in the analysis
         const {Kcond,KbbInv,Kbn,Knb} = frameElementWithReleases(E, A, I, L, rel);
-        const hasRelease = el.kx1!==undefined || el.ky1!==undefined ||
-                           el.cz1!==undefined || el.kx2!==undefined ||
-                           el.ky2!==undefined || el.cz2!==undefined;
+        const hasRelease = (el.kx1 !== undefined && el.kx1 >= 0) ||
+                           (el.ky1 !== undefined && el.ky1 >= 0) ||
+                           (el.cz1 !== undefined && el.cz1 >= 0) ||
+                           (el.kx2 !== undefined && el.kx2 >= 0) ||
+                           (el.ky2 !== undefined && el.ky2 >= 0) ||
+                           (el.cz2 !== undefined && el.cz2 >= 0);
         const kLocal_modified = Kcond;
 
         const T = [
