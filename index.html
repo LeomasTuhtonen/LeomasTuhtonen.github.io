@@ -2027,8 +2027,8 @@ function drawFrame(res,diags){
                 const loadVec=new framePaper.Point(wX,wY);
                 const mag=Math.hypot(wX,wY);
                 const addLen=20/scale;
-                const tailX=mag===0?bx:bx+loadVec.x/mag*(mag*forceScale + addLen);
-                const tailY=mag===0?by:by+loadVec.y/mag*(mag*forceScale + addLen);
+                const tailX=mag===0?bx:bx-loadVec.x/mag*(mag*forceScale + addLen);
+                const tailY=mag===0?by:by-loadVec.y/mag*(mag*forceScale + addLen);
                 const tip=toPoint(bx,by);
                 const tail=toPoint(tailX,tailY);
                 new framePaper.Path({segments:[tail,tip], strokeColor:'blue', strokeWidth:2});
