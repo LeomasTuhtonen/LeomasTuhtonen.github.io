@@ -1872,11 +1872,11 @@ function drawFrame(res,diags){
         const mid=p1.add(p2).divide(2);
         new framePaper.PointText({point:mid.add([0,-10]), content:b.name || `B${i+1}`, fillColor:'green', fontSize:12});
         const arrowEnd=p1.add(p2.subtract(p1).multiply(0.8));
-        new framePaper.Path({segments:[p1,arrowEnd], strokeColor:'blue'});
+        new framePaper.Path({segments:[p1,arrowEnd], strokeColor:'black', dashArray:[4,4]});
         const aDir=arrowEnd.subtract(p1).normalize();
         const left=arrowEnd.add(aDir.rotate(150).multiply(6));
         const right=arrowEnd.add(aDir.rotate(-150).multiply(6));
-        new framePaper.Path({segments:[left,arrowEnd,right], strokeColor:'blue', fillColor:'blue'});
+        new framePaper.Path({segments:[left,arrowEnd,right], strokeColor:'black', fillColor:'black'});
 
         const drawRelease=(point,dirVec,perpVec,kx,ky,cz)=>{
             const size=8;
@@ -1901,8 +1901,9 @@ function drawFrame(res,diags){
             }
         };
 
-        drawRelease(p1, dir.multiply(-1), perp.multiply(-1), b.kx1, b.ky1, b.cz1);
-        drawRelease(p2, dir, perp, b.kx2, b.ky2, b.cz2);
+        const hingeOffset = dir.multiply(0.1*scale);
+        drawRelease(p1.add(hingeOffset), dir.multiply(-1), perp.multiply(-1), b.kx1, b.ky1, b.cz1);
+        drawRelease(p2.subtract(hingeOffset), dir, perp, b.kx2, b.ky2, b.cz2);
     });
 
     frameState.nodes.forEach((n,i)=>{
@@ -2065,7 +2066,7 @@ function drawFrame(res,diags){
             const dGlobal=dofs.map(idx=>res.displacements[idx]);
             const T=[[ c, s,0,0,0,0],[-s, c,0,0,0,0],[0,0,1,0,0,0],[0,0,0, c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
             const dLocal=mulMV(T,dGlobal);
-            const path=new framePaper.Path({strokeColor:'blue'});
+            const path=new framePaper.Path({strokeColor:'purple'});
             for(let j=0;j<=div;j++){
                 const t=j/div;
                 const x=t*L;
