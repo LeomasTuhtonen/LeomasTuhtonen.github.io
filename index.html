@@ -280,6 +280,7 @@
     <div id="frameTab" class="tabcontent">
         <div id="frameLayout">
             <div id="frameControls">
+                <button onclick="clearFrameModel()">Clear the model</button>
                 <div class="section">
                     <h2>Beams</h2>
                     <div id="frameBeams"></div>
@@ -1065,16 +1066,18 @@ function updateChart(chart,x,y,label,scatter,reactions){
     }
     const ctx=document.getElementById(label.toLowerCase()+'Chart').getContext('2d');
     let datasets;
+    const baseColor = label==='Deflection' ? 'purple' : 'blue';
+    const baseBg = label==='Deflection' ? 'rgba(128,0,128,0.2)' : 'rgba(0,0,255,0.2)';
     if(isEnvelope){
         const dmin=x.map((v,i)=>({x:v,y:y[0][i]}));
         const dmax=x.map((v,i)=>({x:v,y:y[1][i]}));
         datasets=[
-            {label:label+' min',data:dmin,fill:true,borderColor:'blue',backgroundColor:'rgba(0,0,255,0.2)',showLine:true},
+            {label:label+' min',data:dmin,fill:true,borderColor:baseColor,backgroundColor:baseBg,showLine:true},
             {label:label+' max',data:dmax,fill:true,borderColor:'green',backgroundColor:'rgba(0,255,0,0.2)',showLine:true}
         ];
     } else {
         const xyData=x.map((v,i)=>({x:v,y:y[i]}));
-        datasets=[{label:label,data:xyData,fill:true,borderColor:'blue',backgroundColor:'rgba(0,0,255,0.2)',showLine:true}];
+        datasets=[{label:label,data:xyData,fill:true,borderColor:baseColor,backgroundColor:baseBg,showLine:true}];
     }
     if(scatter){
         datasets.push({type:'scatter',label:'P',data:scatter,borderColor:'red',backgroundColor:'red',showLine:false});
@@ -1730,6 +1733,21 @@ function rebuildNodeOptions(){
     });
 }
 
+function clearFrameModel(){
+    if(!confirm('Are you sure you want to clear the whole model?')) return;
+    frameState.beams=[];
+    frameState.supports=[];
+    frameState.loads=[];
+    frameState.memberPointLoads=[];
+    frameState.memberLineLoads=[];
+    rebuildFrameBeams();
+    rebuildFrameSupports();
+    rebuildFrameLoads();
+    rebuildFrameMemberPointLoads();
+    rebuildFrameMemberLineLoads();
+    solveFrame();
+}
+
 function solveFrame(){
     rebuildNodes();
     const beams=frameState.beams.filter(b=>b.on!==false).map(b=>{
@@ -1983,15 +2001,15 @@ function drawFrame(res,diags){
                 const loadVec=new framePaper.Point(wX,wY);
                 const mag=Math.hypot(wX,wY);
                 const addLen=20/scale;
-                const ex=mag===0?bx:bx+loadVec.x/mag*(mag*forceScale + addLen);
-                const ey=mag===0?by:by+loadVec.y/mag*(mag*forceScale + addLen);
-                const base=toPoint(bx,by);
-                const end=toPoint(ex,ey);
-                new framePaper.Path({segments:[end,base], strokeColor:'blue', strokeWidth:2});
-                const vec=base.subtract(end).normalize();
-                const left=end.add(vec.rotate(30).multiply(6));
-                const right=end.add(vec.rotate(-30).multiply(6));
-                new framePaper.Path({segments:[left,end,right], strokeColor:'blue', fillColor:'blue', strokeWidth:2});
+                const tailX=mag===0?bx:bx+loadVec.x/mag*(mag*forceScale + addLen);
+                const tailY=mag===0?by:by+loadVec.y/mag*(mag*forceScale + addLen);
+                const tip=toPoint(bx,by);
+                const tail=toPoint(tailX,tailY);
+                new framePaper.Path({segments:[tip,tail], strokeColor:'blue', strokeWidth:2});
+                const vec=tail.subtract(tip).normalize();
+                const left=tip.add(vec.rotate(150).multiply(6));
+                const right=tip.add(vec.rotate(-150).multiply(6));
+                new framePaper.Path({segments:[left,tip,right], strokeColor:'blue', fillColor:'blue', strokeWidth:2});
             }
         });
     }
