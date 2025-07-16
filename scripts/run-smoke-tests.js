@@ -15,7 +15,11 @@ const puppeteer = require('puppeteer');
   });
   const filePath = `file://${process.cwd()}/index.html`;
   await page.goto(filePath);
-  await page.waitForTimeout(1000);
+  if (typeof page.waitForTimeout === 'function') {
+    await page.waitForTimeout(1000);
+  } else {
+    await new Promise(r => setTimeout(r, 1000));
+  }
   await browser.close();
   if (errorDetected) {
     console.error('Smoke test failed');
