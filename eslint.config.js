@@ -13,7 +13,8 @@ export default [
         require: 'readonly',
         module: 'readonly',
         process: 'readonly',
-        console: 'readonly'
+        console: 'readonly',
+        setTimeout: 'readonly'
       }
     },
     rules: {

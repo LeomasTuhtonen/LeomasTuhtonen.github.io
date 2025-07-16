@@ -112,19 +112,20 @@ function addMatrices(A,B){
     return A.map((row,i)=>row.map((v,j)=>v+B[i][j]));
 }
 
-function condenseLoadVector(KbbInv, Knb, fFull){
+function condenseLoadVector(KbbInv, Knb, fBeam){
+    // fBeam contains the fixed-end forces acting on the internal beam DOFs
+    // (u1b, v1b, th1b, u2b, v2b, th2b). The node DOFs have no direct load.
     const temp = new Array(6).fill(0);
     for (let i = 0; i < 6; i++) {
         let sum = 0;
-        for (let j = 0; j < 6; j++) sum += KbbInv[i][j] * fFull[j];
+        for (let j = 0; j < 6; j++) sum += KbbInv[i][j] * fBeam[j];
         temp[i] = sum;
     }
     const fCond = new Array(6).fill(0);
     for (let i = 0; i < 6; i++) {
-        fCond[i] = fFull[i];
         let sum = 0;
         for (let j = 0; j < 6; j++) sum += Knb[i][j] * temp[j];
-        fCond[i] -= sum;
+        fCond[i] = -sum;
     }
     return fCond;
 }
@@ -145,10 +146,18 @@ function buildGlobalLoadVector(frame){
         const FyLocal=-s*(l.Fx||0)+c*(l.Fy||0);
         const local=[0,0,0,0,0,0];
         if(FxLocal){local[0]+=FxLocal*(1-a/L); local[3]+=FxLocal*(a/L);}
-        if(FyLocal){const P=FyLocal; local[1]+=P*b*b*(3*a+b)/Math.pow(L,3); local[2]+=P*a*b*b/Math.pow(L,2); local[4]+=P*a*a*(3*b+a)/Math.pow(L,3); local[5]+=-P*a*a*b/Math.pow(L,2);} 
-        if(l.Mz){local[2]+=l.Mz*(1-a/L); local[5]+=l.Mz*(a/L);} 
+        if(FyLocal){const P=FyLocal; local[1]+=P*b*b*(3*a+b)/Math.pow(L,3); local[2]+=P*a*b*b/Math.pow(L,2); local[4]+=P*a*a*(3*b+a)/Math.pow(L,3); local[5]+=-P*a*a*b/Math.pow(L,2);}
+        if(l.Mz){local[2]+=l.Mz*(1-a/L); local[5]+=l.Mz*(a/L);}
+        const E=el.E||frame.E||210e9;
+        const I=el.I||frame.I||1e-6;
+        const A=el.A||frame.A||0.001;
+        const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
+        // eslint-disable-next-line no-use-before-define
+        const {KbbInv,Knb}=frameElementWithReleases(E,A,I,L,rel);
+        const hasRelease=(el.kx1!==undefined&&el.kx1>=0)||(el.ky1!==undefined&&el.ky1>=0)||(el.cz1!==undefined&&el.cz1>=0)||(el.kx2!==undefined&&el.kx2>=0)||(el.ky2!==undefined&&el.ky2>=0)||(el.cz2!==undefined&&el.cz2>=0);
+        const localCond=hasRelease ? condenseLoadVector(KbbInv,Knb,local) : local;
         const T=[[c,s,0,0,0,0],[-s,c,0,0,0,0],[0,0,1,0,0,0],[0,0,0,c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
-        const gl=multiplyMatrixVector(transpose(T),local);
+        const gl=multiplyMatrixVector(transpose(T),localCond);
         const dofs=[3*el.n1,3*el.n1+1,3*el.n1+2,3*el.n2,3*el.n2+1,3*el.n2+2];
         for(let i=0;i<6;i++) F[dofs[i]]+=gl[i];
     });
@@ -159,8 +168,16 @@ function buildGlobalLoadVector(frame){
         const c=dx/L, s=dy/L;
         const start=l.start===undefined?0:l.start; const end=l.end===undefined?L:l.end;
         const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
+        const E=el.E||frame.E||210e9;
+        const I=el.I||frame.I||1e-6;
+        const A=el.A||frame.A||0.001;
+        const rel={kx1:el.kx1,ky1:el.ky1,cz1:el.cz1,kx2:el.kx2,ky2:el.ky2,cz2:el.cz2};
+        // eslint-disable-next-line no-use-before-define
+        const {KbbInv,Knb}=frameElementWithReleases(E,A,I,L,rel);
+        const hasRelease=(el.kx1!==undefined&&el.kx1>=0)||(el.ky1!==undefined&&el.ky1>=0)||(el.cz1!==undefined&&el.cz1>=0)||(el.kx2!==undefined&&el.kx2>=0)||(el.ky2!==undefined&&el.ky2>=0)||(el.cz2!==undefined&&el.cz2>=0);
+        const localCond=hasRelease ? condenseLoadVector(KbbInv,Knb,fe) : fe;
         const T=[[c,s,0,0,0,0],[-s,c,0,0,0,0],[0,0,1,0,0,0],[0,0,0,c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
-        const gl=multiplyMatrixVector(transpose(T),fe);
+        const gl=multiplyMatrixVector(transpose(T),localCond);
         const dofs=[3*el.n1,3*el.n1+1,3*el.n1+2,3*el.n2,3*el.n2+1,3*el.n2+2];
         for(let i=0;i<6;i++) F[dofs[i]]+=gl[i];
     });
