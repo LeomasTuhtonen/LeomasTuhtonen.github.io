@@ -1479,7 +1479,7 @@ function showTab(name){
     }
     if(name==='frame'){
         // redraw frame diagram after tab becomes visible
-        requestAnimationFrame(()=>drawFrame(frameRes, frameDiags));
+        drawFrame(frameRes, frameDiags);
     }
 }
 
@@ -1877,6 +1877,32 @@ function drawFrame(res,diags){
         const left=arrowEnd.add(aDir.rotate(150).multiply(6));
         const right=arrowEnd.add(aDir.rotate(-150).multiply(6));
         new framePaper.Path({segments:[left,arrowEnd,right], strokeColor:'blue', fillColor:'blue'});
+
+        const drawRelease=(point,dirVec,perpVec,kx,ky,cz)=>{
+            const size=8;
+            if(cz>-1){
+                new framePaper.Path.Circle({center:point.add(perpVec.multiply(4)), radius:3, strokeColor:'orange'});
+            }
+            if(kx>-1){
+                const tail=point.add(dirVec.multiply(size));
+                new framePaper.Path({segments:[tail,point], strokeColor:'orange'});
+                const vec=point.subtract(tail).normalize();
+                const l=point.add(vec.rotate(150).multiply(3));
+                const r=point.add(vec.rotate(-150).multiply(3));
+                new framePaper.Path({segments:[l,point,r], strokeColor:'orange', fillColor:'orange'});
+            }
+            if(ky>-1){
+                const tail=point.add(perpVec.multiply(size));
+                new framePaper.Path({segments:[tail,point], strokeColor:'orange'});
+                const vec=point.subtract(tail).normalize();
+                const l=point.add(vec.rotate(150).multiply(3));
+                const r=point.add(vec.rotate(-150).multiply(3));
+                new framePaper.Path({segments:[l,point,r], strokeColor:'orange', fillColor:'orange'});
+            }
+        };
+
+        drawRelease(p1, dir.multiply(-1), perp.multiply(-1), b.kx1, b.ky1, b.cz1);
+        drawRelease(p2, dir, perp, b.kx2, b.ky2, b.cz2);
     });
 
     frameState.nodes.forEach((n,i)=>{
@@ -2005,8 +2031,8 @@ function drawFrame(res,diags){
                 const tailY=mag===0?by:by+loadVec.y/mag*(mag*forceScale + addLen);
                 const tip=toPoint(bx,by);
                 const tail=toPoint(tailX,tailY);
-                new framePaper.Path({segments:[tip,tail], strokeColor:'blue', strokeWidth:2});
-                const vec=tail.subtract(tip).normalize();
+                new framePaper.Path({segments:[tail,tip], strokeColor:'blue', strokeWidth:2});
+                const vec=tip.subtract(tail).normalize();
                 const left=tip.add(vec.rotate(150).multiply(6));
                 const right=tip.add(vec.rotate(-150).multiply(6));
                 new framePaper.Path({segments:[left,tip,right], strokeColor:'blue', fillColor:'blue', strokeWidth:2});
