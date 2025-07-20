@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beam Calculator</title>
+    <title>ThunderStruct</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; background:#f4f4f4; color:#333; }
         #container { display:flex; flex-wrap:wrap; gap:20px; padding:20px; }
@@ -22,7 +22,10 @@
         button:hover { background:#45a049; }
         .remove-btn { background:#f44336; }
         .remove-btn:hover { background:#d32f2f; }
-        h1 { text-align:center; padding:20px 0; margin:0; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.1); margin-bottom:20px; }
+        #header { text-align:center; padding:20px 0; margin:0; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.1); margin-bottom:20px; }
+        #header h1 { margin:10px 0 5px 0; }
+        #header img { height:80px; display:block; margin:0 auto; }
+        #header p { margin:0; font-style:italic; }
         #tabs { text-align:center; margin-bottom:20px; }
         #tabs button { padding:6px 12px; margin:0 5px; border:none; border-radius:4px; cursor:pointer; background:#ddd; }
         #tabs button.active { background:#4CAF50; color:white; }
@@ -44,7 +47,11 @@
     </style>
 </head>
 <body>
-    <h1>Beam Calculator</h1>
+    <div id="header">
+        <img src="9326693B-D49A-434B-A844-C1D583FF027B.png" alt="ThunderStruct logo">
+        <h1>ThunderStruct</h1>
+        <p>Totally free-to-use toolkit with powerful FEM for lightning-fast structural analysis</p>
+    </div>
     <div id="disclaimer" style="background:#fff3cd;border:1px solid #ffecb5;padding:10px;margin:10px;text-align:center;font-weight:bold;color:#b22222;">This tool is provided for educational and preliminary design purposes only. The results should not be used for final structural design without independent verification by a qualified professional engineer. The author assumes no responsibility or liability for any errors or omissions in the content of this site or for any actions taken in reliance on the information provided.</div>
     <div id="tabs">
         <button data-tab="analysis" class="active" onclick="showTab('analysis')">Analysis</button>
