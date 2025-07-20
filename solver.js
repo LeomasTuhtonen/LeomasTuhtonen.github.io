@@ -166,7 +166,8 @@ function buildGlobalLoadVector(frame){
         const p1=frame.nodes[el.n1], p2=frame.nodes[el.n2];
         const dx=p2.x-p1.x, dy=p2.y-p1.y; const L=Math.hypot(dx,dy); if(L===0) return;
         const c=dx/L, s=dy/L;
-        const start=l.start===undefined?0:l.start; const end=l.end===undefined?L:l.end;
+        const start=l.start===undefined?0:l.start;
+        const end=l.end===undefined||l.end===-1?L:l.end;
         const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
         const E=el.E||frame.E||210e9;
         const I=el.I||frame.I||1e-6;
@@ -468,7 +469,7 @@ function computeDiagrams(state,nodes,reactions){
     for(let i=0;i<nodes.length;i++) events.push({x:nodes[i],P:reactions[2*i]});
     (state.pointLoads||[]).forEach(p=>events.push({x:p.x,P:p.P}));
     (state.lineLoads||[]).forEach(l=>events.push({x:l.start,w:l.w,start:true}));
-    (state.lineLoads||[]).forEach(l=>events.push({x:l.end,w:l.w,end:true}));
+    (state.lineLoads||[]).forEach(l=>events.push({x:(l.end<0?totalLength:l.end),w:l.w,end:true}));
     events.sort((a,b)=>a.x-b.x);
 
     let shear=0,moment=0;
@@ -691,7 +692,7 @@ function computeFrameResults(frame){
                            (el.ky2 !== undefined && el.ky2 >= 0) ||
                            (el.cz2 !== undefined && el.cz2 >= 0);
         const start=l.start===undefined?0:l.start;
-        const end=l.end===undefined?L:l.end;
+        const end=l.end===undefined||l.end===-1?L:l.end;
         const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
         const localCond=hasRelease ?
             condenseLoadVector(KbbInv,Knb,fe) : fe;
@@ -762,7 +763,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         const FEF = new Array(6).fill(0);
         (frame.memberLineLoads || []).filter(l => l.beam === idx).forEach(l => {
             const start=l.start===undefined?0:l.start;
-            const end=l.end===undefined?L:l.end;
+            const end=l.end===undefined||l.end===-1?L:l.end;
             const fe=trapezoidalLineLoadForces(l.wX1||0,l.wY1||0,l.wX2||0,l.wY2||0,L,start,end,c,s);
             const cond=hasRelease ?
                 condenseLoadVector(KbbInv,Knb,fe) : fe;
@@ -799,7 +800,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
         const pointLoads = (frame.memberPointLoads || []).filter(l => l.beam === idx);
         pointLoads.forEach(p => events.add(p.x));
         const lineLoads = (frame.memberLineLoads || []).filter(l => l.beam === idx);
-        lineLoads.forEach(l => { events.add(l.start || 0); events.add(l.end || L); });
+        lineLoads.forEach(l => { events.add(l.start || 0); events.add((l.end===-1||l.end===undefined)?L:l.end); });
         const positions = Array.from(events).sort((a, b) => a - b).filter(p => p >= 0 && p <= L+1e-9);
 
         const normalArr = [{ x: 0, y: normal }];
@@ -816,7 +817,7 @@ function computeFrameDiagrams(frame, res, divisions = 10) {
             let intAx = 0, intWy = 0, intWyX = 0;
             lineLoads.forEach(l => {
                 const start = l.start || 0;
-                const end   = l.end   === undefined ? L : l.end;
+                const end   = (l.end === undefined || l.end === -1) ? L : l.end;
                 const segStart = Math.max(x1, start);
                 const segEnd   = Math.min(x2, end);
                 if (segEnd <= segStart) return;
