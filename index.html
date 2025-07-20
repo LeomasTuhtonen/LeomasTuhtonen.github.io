@@ -1557,7 +1557,8 @@ function frameMemberLoadsOutOfRange(){
         const n2=frameState.nodes[b.n2];
         if(!n1||!n2) continue;
         const L=Math.hypot(n2.x-n1.x,n2.y-n1.y);
-        if(l.start<0 || l.end> L) return true;
+        const endVal=l.end<0?L:l.end;
+        if(l.start<0 || endVal> L) return true;
     }
     return false;
 }
@@ -1722,7 +1723,7 @@ function rebuildFrameMemberPointLoads(){
 }
 
 function addFrameMemberLineLoad(){
-    frameState.memberLineLoads.push({beam:0,start:0,end:1,wX1:0,wX2:0,wY1:-1,wY2:-1});
+    frameState.memberLineLoads.push({beam:0,start:0,end:-1,wX1:0,wX2:0,wY1:-1,wY2:-1});
     rebuildFrameMemberLineLoads();
     solveFrame();
 }
@@ -1927,7 +1928,7 @@ function drawFrame(res,diags){
         new framePaper.Path({segments:[left,arrowEnd,right], strokeColor:'black', fillColor:'black'});
 
         const drawRelease=(point,dirVec,perpVec,kx,ky,cz)=>{
-            const size=8;
+            const size=16;
             if(cz>-1){
                 new framePaper.Path.Circle({center:point.add(perpVec.multiply(4)), radius:3, strokeColor:'orange'});
             }
@@ -1960,7 +1961,7 @@ function drawFrame(res,diags){
     });
 
     if(frameState.supports.length){
-        const size=8;
+        const size=16;
         frameState.supports.forEach(s=>{
             const node=frameState.nodes[s.node];
             const p=toPoint(node.x,node.y);
@@ -2001,6 +2002,7 @@ function drawFrame(res,diags){
                 const left=p.subtract(dir.multiply(8)).add(dir.rotate(90).multiply(5));
                 const right=p.subtract(dir.multiply(8)).add(dir.rotate(-90).multiply(5));
                 new framePaper.Path({segments:[left,p,right], strokeColor:'green', fillColor:'green', strokeWidth:2});
+                new framePaper.PointText({point:start.add([-4,-4]), content:mag.toFixed(1), fillColor:'green', fontSize:10});
             }
             if(l.My){
                 const sign=l.My>0?1:-1;
@@ -2038,6 +2040,7 @@ function drawFrame(res,diags){
                 const left=p.subtract(vec.multiply(8)).add(vec.rotate(90).multiply(5));
                 const right=p.subtract(vec.multiply(8)).add(vec.rotate(-90).multiply(5));
                 new framePaper.Path({segments:[left,p,right], strokeColor:'green', fillColor:'green', strokeWidth:2});
+                new framePaper.PointText({point:start.add([-4,-4]), content:mag.toFixed(1), fillColor:'green', fontSize:10});
             }
             if(l.Mz){
                 const sign=l.Mz>0?1:-1;
@@ -2065,9 +2068,10 @@ function drawFrame(res,diags){
             const dx=n2.x-n1.x, dy=n2.y-n1.y; const L=Math.hypot(dx,dy);
             const dir=new framePaper.Point(dx,dy).normalize();
             const steps=10;
+            const endVal=l.end<0?L:l.end;
             for(let i=0;i<=steps;i++){
                 const t=i/steps;
-                const x=l.start+(l.end-l.start)*t;
+                const x=l.start+(endVal-l.start)*t;
                 if(x<0||x>L) continue;
                 const wX=l.wX1+(l.wX2-l.wX1)*t;
                 const wY=l.wY1+(l.wY2-l.wY1)*t;
@@ -2085,6 +2089,7 @@ function drawFrame(res,diags){
                 const left=tip.add(vec.rotate(150).multiply(6));
                 const right=tip.add(vec.rotate(-150).multiply(6));
                 new framePaper.Path({segments:[left,tip,right], strokeColor:'blue', fillColor:'blue', strokeWidth:2});
+                new framePaper.PointText({point:tail.add([-4,-4]), content:mag.toFixed(1), fillColor:'blue', fontSize:10});
             }
         });
     }
