@@ -281,6 +281,9 @@
         <div id="frameLayout">
             <div id="frameControls">
                 <button onclick="clearFrameModel()">Clear the model</button>
+                <button id="frameSaveBtn">Save Model</button>
+                <button id="frameLoadBtn">Load Model</button>
+                <input type="file" id="frameLoadFile" style="display:none" accept="application/json">
                 <div class="section">
                     <h2>Beams</h2>
                     <div id="frameBeams"></div>
@@ -834,6 +837,44 @@ document.getElementById('maxNodeDist').onchange=function(){
 };
 document.getElementById('exportBtn').onclick=function(){
     window.print();
+};
+
+document.getElementById('frameSaveBtn').onclick=function(){
+    const data=JSON.stringify(frameState);
+    const blob=new Blob([data],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download='frame_model.json';
+    a.click();
+    URL.revokeObjectURL(url);
+};
+document.getElementById('frameLoadBtn').onclick=function(){
+    document.getElementById('frameLoadFile').click();
+};
+document.getElementById('frameLoadFile').onchange=function(){
+    const file=this.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+        try{
+            const obj=JSON.parse(e.target.result);
+            frameState.beams=obj.beams||[];
+            frameState.supports=obj.supports||[];
+            frameState.loads=obj.loads||[];
+            frameState.memberPointLoads=obj.memberPointLoads||[];
+            frameState.memberLineLoads=obj.memberLineLoads||[];
+            rebuildNodes();
+            rebuildFrameBeams();
+            rebuildFrameSupports();
+            rebuildFrameLoads();
+            rebuildFrameMemberPointLoads();
+            rebuildFrameMemberLineLoads();
+            solveFrame();
+        }catch(err){
+            alert('Invalid file');
+        }
+    };
+    reader.readAsText(file);
 };
 
 // FEM Solver
@@ -1788,7 +1829,14 @@ function solveFrame(){
         if(alphaEl){alphaEl.style.display='none';alphaEl.innerHTML='';}
     }
     const res=analysis==='pdelta'?computeFrameResultsPDelta_Kg(frame):computeFrameResults(frame);
-    if(!res) return;
+    if(!res){
+        frameRes=null;
+        frameDiags=[];
+        drawFrame(null,[]);
+        updateFrameReactions(null);
+        updateFrameWarning();
+        return;
+    }
     updateFrameReactions(res);
     updateFrameWarning();
     const div=parseInt(document.getElementById('frameDiv')?.value||'1');
