@@ -141,6 +141,18 @@
     </div>
 
     <div class="section">
+        <h2>Moving Point Loads</h2>
+        <div id="movingPointLoadsContainer"></div>
+        <button id="addMovingPointLoadBtn">Add Moving Point Load</button>
+    </div>
+
+    <div class="section">
+        <h2>Moving Line Loads</h2>
+        <div id="movingLineLoadsContainer"></div>
+        <button id="addMovingLineLoadBtn">Add Moving Line Load</button>
+    </div>
+
+    <div class="section">
         <h2>Load Combinations</h2>
         <div id="combContainer"></div>
         <button id="addCombBtn">Add Combination</button>
@@ -371,6 +383,8 @@ const state = {
     spans: [],
     pointLoads: [],
     lineLoads: [],
+    movingPointLoads: [],
+    movingLineLoads: [],
     maxNodeDist: 0.2,
     material: 'steel',
     E: 210e9,
@@ -629,6 +643,67 @@ function updateWholeLineLoads(){
     });
 }
 
+function addMovingPointLoad(P=10,step=1,lc='LC1'){
+    const idx=state.movingPointLoads.length;
+    state.movingPointLoads.push({P,step,case:lc});
+    const div=document.createElement('div');
+    div.className='input-row';
+    div.innerHTML=`<label>Move P${idx+1} (P kN,step,case):</label>`+
+        `<input type='number' value='${(P/1000)}' step='0.1' onchange='state.movingPointLoads[${idx}].P=parseFloat(this.value)*1000; solveSelected();'/>`+
+        `<input type='number' value='${step}' step='0.1' onchange='state.movingPointLoads[${idx}].step=parseFloat(this.value); solveSelected();'/>`+
+        `<input type='text' value='${lc}' onchange='state.movingPointLoads[${idx}].case=this.value; updateResultsOptions(); solveSelected();'/>`+
+        `<button class='remove-btn' onclick='removeMovingPointLoad(${idx})'>Remove</button>`;
+    div.id=`mpload-${idx}`;
+    document.getElementById('movingPointLoadsContainer').appendChild(div);
+    updateResultsOptions();
+    solveSelected();
+}
+function removeMovingPointLoad(i){
+    state.movingPointLoads.splice(i,1);
+    document.getElementById('mpload-'+i).remove();
+    rebuildMovingPointLoads();
+    updateResultsOptions();
+    solveSelected();
+}
+function rebuildMovingPointLoads(){
+    const c=document.getElementById('movingPointLoadsContainer');
+    const arr=state.movingPointLoads.slice();
+    c.innerHTML='';
+    state.movingPointLoads=[];
+    arr.forEach(l=>addMovingPointLoad(l.P,l.step,l.case));
+}
+
+function addMovingLineLoad(w=5,length=1,step=1,lc='LC1'){
+    const idx=state.movingLineLoads.length;
+    state.movingLineLoads.push({w,length,step,case:lc});
+    const div=document.createElement('div');
+    div.className='input-row';
+    div.innerHTML=`<label>Move L${idx+1} (w kN/m,len,step,case):</label>`+
+        `<input type='number' value='${(w/1000)}' step='0.1' onchange='state.movingLineLoads[${idx}].w=parseFloat(this.value)*1000; solveSelected();'/>`+
+        `<input type='number' value='${length}' step='0.1' onchange='state.movingLineLoads[${idx}].length=parseFloat(this.value); solveSelected();'/>`+
+        `<input type='number' value='${step}' step='0.1' onchange='state.movingLineLoads[${idx}].step=parseFloat(this.value); solveSelected();'/>`+
+        `<input type='text' value='${lc}' onchange='state.movingLineLoads[${idx}].case=this.value; updateResultsOptions(); solveSelected();'/>`+
+        `<button class='remove-btn' onclick='removeMovingLineLoad(${idx})'>Remove</button>`;
+    div.id=`mlload-${idx}`;
+    document.getElementById('movingLineLoadsContainer').appendChild(div);
+    updateResultsOptions();
+    solveSelected();
+}
+function removeMovingLineLoad(i){
+    state.movingLineLoads.splice(i,1);
+    document.getElementById('mlload-'+i).remove();
+    rebuildMovingLineLoads();
+    updateResultsOptions();
+    solveSelected();
+}
+function rebuildMovingLineLoads(){
+    const c=document.getElementById('movingLineLoadsContainer');
+    const arr=state.movingLineLoads.slice();
+    c.innerHTML='';
+    state.movingLineLoads=[];
+    arr.forEach(l=>addMovingLineLoad(l.w,l.length,l.step,l.case));
+}
+
 function hasOutOfRangeLoad(){
     const len=getBeamLength();
     for(const p of state.pointLoads){
@@ -691,20 +766,24 @@ function getLoadsForSelected(){
         const name=sel.name;
         const pl=state.pointLoads.filter(l=>l.case===name);
         const ll=state.lineLoads.filter(l=>l.case===name);
-        return {pointLoads:pl, lineLoads:ll};
+        const mpl=state.movingPointLoads.filter(l=>l.case===name);
+        const mll=state.movingLineLoads.filter(l=>l.case===name);
+        return {pointLoads:pl, lineLoads:ll, movingPointLoads:mpl, movingLineLoads:mll};
     }
     if(sel.type==='comb'){
         const comb=state.loadCombinations[sel.index];
-        const pl=[],ll=[];
+        const pl=[],ll=[],mpl=[],mll=[];
         if(comb){
             Object.entries(comb.factors).forEach(([cn,f])=>{
                 state.pointLoads.filter(l=>l.case===cn).forEach(l=>pl.push({P:l.P*f,x:l.x}));
                 state.lineLoads.filter(l=>l.case===cn).forEach(l=>ll.push({w:l.w*f,start:l.start,end:l.end}));
+                state.movingPointLoads.filter(l=>l.case===cn).forEach(l=>mpl.push({P:l.P*f,step:l.step}));
+                state.movingLineLoads.filter(l=>l.case===cn).forEach(l=>mll.push({w:l.w*f,length:l.length,step:l.step}));
             });
         }
-        return {pointLoads:pl,lineLoads:ll};
+        return {pointLoads:pl,lineLoads:ll,movingPointLoads:mpl,movingLineLoads:mll};
     }
-    return {pointLoads:[],lineLoads:[]};
+    return {pointLoads:[],lineLoads:[],movingPointLoads:[],movingLineLoads:[]};
 }
 
 function updateResultsOptions(){
@@ -714,6 +793,8 @@ function updateResultsOptions(){
     const cases=new Set();
     state.pointLoads.forEach(l=>cases.add(l.case||'LC1'));
     state.lineLoads.forEach(l=>cases.add(l.case||'LC1'));
+    state.movingPointLoads.forEach(l=>cases.add(l.case||'LC1'));
+    state.movingLineLoads.forEach(l=>cases.add(l.case||'LC1'));
     Array.from(cases).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).forEach(cn=>{
         const opt=document.createElement('option');
         opt.value=`case:${cn}`; opt.textContent=`Case ${cn}`;
@@ -755,6 +836,8 @@ function updateSelectedText(){
 document.getElementById('addSpanBtn').onclick=()=>addSpan();
 document.getElementById('addPointLoadBtn').onclick=()=>addPointLoad();
 document.getElementById('addLineLoadBtn').onclick=()=>addLineLoad();
+document.getElementById('addMovingPointLoadBtn').onclick=()=>addMovingPointLoad();
+document.getElementById('addMovingLineLoadBtn').onclick=()=>addMovingLineLoad();
 document.getElementById('addCombBtn').onclick=()=>addCombination();
 document.getElementById('resultsSelect').onchange=function(){
     updateResultsOptions();
@@ -897,34 +980,18 @@ function solveSelected(){
         const minS={},maxS={},minM={},maxM={},minD={},maxD={};
         state.loadCombinations.forEach((comb,i)=>{
             const loads=getLoadsForSelected.call({selected:{type:'comb',index:i}});
-            const extraNodes=[
-                ...new Set([
-                    ...state.pointLoads.map(p=>p.x),
-                    ...state.lineLoads.flatMap(l=>[l.start,l.end])
-                ])
-            ];
-            const res=computeResults({
-                ...state,
-                pointLoads:loads.pointLoads,
-                lineLoads:loads.lineLoads,
-                extraNodePositions:extraNodes
-            });
-            const diagRaw=computeDiagrams({...state,pointLoads:loads.pointLoads,lineLoads:loads.lineLoads},res.nodes,res.reactions);
-            const shearVals=diagRaw.shearVals.map(v=>-v);
-            const momentVals=diagRaw.momentVals.map(v=>-v);
-            const defVals=res.nodes.map((_,idx)=>res.displacements[2*idx]*1000);
-            diagRaw.xs.forEach((x,j)=>{
+            const env=computeCaseEnvelope(loads);
+            env.xs.forEach((x,j)=>{
                 xsSet.add(x);
-                if(minS[x]===undefined){minS[x]=shearVals[j]; maxS[x]=shearVals[j];}
-                else{ if(shearVals[j]<minS[x]) minS[x]=shearVals[j]; if(shearVals[j]>maxS[x]) maxS[x]=shearVals[j]; }
-                if(minM[x]===undefined){minM[x]=momentVals[j]; maxM[x]=momentVals[j];}
-                else{ if(momentVals[j]<minM[x]) minM[x]=momentVals[j]; if(momentVals[j]>maxM[x]) maxM[x]=momentVals[j]; }
-            });
-            res.nodes.forEach((x,j)=>{
-                xsSet.add(x);
-                const v=defVals[j];
-                if(minD[x]===undefined){minD[x]=v; maxD[x]=v;}
-                else{ if(v<minD[x]) minD[x]=v; if(v>maxD[x]) maxD[x]=v; }
+                const sMin=env.minS[j], sMax=env.maxS[j];
+                const mMin=env.minM[j], mMax=env.maxM[j];
+                const dMin=env.minD[j], dMax=env.maxD[j];
+                if(minS[x]===undefined){minS[x]=sMin; maxS[x]=sMax;}
+                else{ if(sMin<minS[x]) minS[x]=sMin; if(sMax>maxS[x]) maxS[x]=sMax; }
+                if(minM[x]===undefined){minM[x]=mMin; maxM[x]=mMax;}
+                else{ if(mMin<minM[x]) minM[x]=mMin; if(mMax>maxM[x]) maxM[x]=mMax; }
+                if(minD[x]===undefined){minD[x]=dMin; maxD[x]=dMax;}
+                else{ if(dMin<minD[x]) minD[x]=dMin; if(dMax>maxD[x]) maxD[x]=dMax; }
             });
         });
         const xs=Array.from(xsSet).sort((a,b)=>a-b);
@@ -951,6 +1018,24 @@ function solveSelected(){
         return;
     }
     const loads=getLoadsForSelected();
+    if((loads.movingPointLoads&&loads.movingPointLoads.length) || (loads.movingLineLoads&&loads.movingLineLoads.length)){
+        const env=computeCaseEnvelope(loads);
+        updateChart(shearChart,env.xs,[env.minS,env.maxS],'Shear');
+        updateChart(momentChart,env.xs,[env.minM,env.maxM],'Moment');
+        plotDeflection(env.xs,[env.minD,env.maxD]);
+        document.getElementById("reactionsOutput").textContent='Envelope shown';
+        const minShear=(Math.min(...env.minS)/1000).toFixed(2);
+        const maxShear=(Math.max(...env.maxS)/1000).toFixed(2);
+        const minMoment=(Math.min(...env.minM)/1000).toFixed(2);
+        const maxMoment=(Math.max(...env.maxM)/1000).toFixed(2);
+        const minDef=Math.min(...env.minD).toFixed(2);
+        const maxDef=Math.max(...env.maxD).toFixed(2);
+        const txt=`Shear: ${minShear} kN to ${maxShear} kN\n`+
+                   `Moment: ${minMoment} kNm to ${maxMoment} kNm\n`+
+                   `Deflection: ${minDef} mm to ${maxDef} mm`;
+        document.getElementById("summaryOutput").textContent=txt;
+        return;
+    }
     const extraNodes=[
         ...new Set([
             ...state.pointLoads.map(p=>p.x),
@@ -1143,33 +1228,77 @@ function updateChart(chart,x,y,label,scatter,reactions){
     if(label==='Loads') loadChart=newChart;
 }
 
+function computeCaseEnvelope(loads){
+    const basePL=loads.pointLoads||[];
+    const baseLL=loads.lineLoads||[];
+    const mPL=loads.movingPointLoads||[];
+    const mLL=loads.movingLineLoads||[];
+    const len=getBeamLength();
+    const xsSet=new Set();
+    const minS={},maxS={},minM={},maxM={},minD={},maxD={};
+    function run(pl,ll){
+        const extra=[...new Set([...pl.map(p=>p.x),...ll.flatMap(l=>[l.start,l.end])])];
+        const res=computeResults({...state,pointLoads:pl,lineLoads:ll,extraNodePositions:extra});
+        if(!res) return;
+        const diag=computeDiagrams({...state,pointLoads:pl,lineLoads:ll},res.nodes,res.reactions);
+        const shear=diag.shearVals.map(v=>-v);
+        const moment=diag.momentVals.map(v=>-v);
+        const def=res.nodes.map((_,idx)=>res.displacements[2*idx]*1000);
+        diag.xs.forEach((x,j)=>{
+            xsSet.add(x);
+            if(minS[x]===undefined){minS[x]=shear[j]; maxS[x]=shear[j];}
+            else{ if(shear[j]<minS[x]) minS[x]=shear[j]; if(shear[j]>maxS[x]) maxS[x]=shear[j]; }
+            if(minM[x]===undefined){minM[x]=moment[j]; maxM[x]=moment[j];}
+            else{ if(moment[j]<minM[x]) minM[x]=moment[j]; if(moment[j]>maxM[x]) maxM[x]=moment[j]; }
+        });
+        res.nodes.forEach((x,j)=>{
+            xsSet.add(x);
+            const d=def[j];
+            if(minD[x]===undefined){minD[x]=d; maxD[x]=d;}
+            else{ if(d<minD[x]) minD[x]=d; if(d>maxD[x]) maxD[x]=d; }
+        });
+    }
+    run(basePL,baseLL);
+    mPL.forEach(pl=>{
+        const step=pl.step||len;
+        for(let pos=0; pos<=len; pos+=step){
+            run([...basePL,{P:pl.P,x:pos}], baseLL);
+        }
+    });
+    mLL.forEach(ll=>{
+        const step=ll.step||len;
+        const L=ll.length||len;
+        for(let pos=0; pos<=len-L; pos+=step){
+            run(basePL, [...baseLL,{w:ll.w,start:pos,end:pos+L}]);
+        }
+    });
+    const xs=Array.from(xsSet).sort((a,b)=>a-b);
+    return {
+        xs,
+        minS: xs.map(x=>minS[x]),
+        maxS: xs.map(x=>maxS[x]),
+        minM: xs.map(x=>minM[x]),
+        maxM: xs.map(x=>maxM[x]),
+        minD: xs.map(x=>minD[x]),
+        maxD: xs.map(x=>maxD[x])
+    };
+}
+
 function computeEnvelopeForces(){
     if(state.loadCombinations.length===0){ state.envelopeForces=null; return; }
     const xsSet=new Set();
     const minS={},maxS={},minM={},maxM={};
     state.loadCombinations.forEach((comb,i)=>{
         const loads=getLoadsForSelected.call({selected:{type:'comb',index:i}});
-        const extraNodes=[
-            ...new Set([
-                ...state.pointLoads.map(p=>p.x),
-                ...state.lineLoads.flatMap(l=>[l.start,l.end])
-            ])
-        ];
-        const res=computeResults({
-            ...state,
-            pointLoads:loads.pointLoads,
-            lineLoads:loads.lineLoads,
-            extraNodePositions:extraNodes
-        });
-        const diag=computeDiagrams({...state,pointLoads:loads.pointLoads,lineLoads:loads.lineLoads},res.nodes,res.reactions);
-        const shearVals=diag.shearVals.map(v=>-v);
-        const momentVals=diag.momentVals.map(v=>-v);
-        diag.xs.forEach((x,j)=>{
+        const env=computeCaseEnvelope(loads);
+        env.xs.forEach((x,j)=>{
             xsSet.add(x);
-            if(minS[x]===undefined){minS[x]=shearVals[j]; maxS[x]=shearVals[j];}
-            else { if(shearVals[j]<minS[x]) minS[x]=shearVals[j]; if(shearVals[j]>maxS[x]) maxS[x]=shearVals[j]; }
-            if(minM[x]===undefined){minM[x]=momentVals[j]; maxM[x]=momentVals[j];}
-            else { if(momentVals[j]<minM[x]) minM[x]=momentVals[j]; if(momentVals[j]>maxM[x]) maxM[x]=momentVals[j]; }
+            const sMin=env.minS[j]; const sMax=env.maxS[j];
+            const mMin=env.minM[j]; const mMax=env.maxM[j];
+            if(minS[x]===undefined){minS[x]=sMin; maxS[x]=sMax;}
+            else { if(sMin<minS[x]) minS[x]=sMin; if(sMax>maxS[x]) maxS[x]=sMax; }
+            if(minM[x]===undefined){minM[x]=mMin; maxM[x]=mMax;}
+            else { if(mMin<minM[x]) minM[x]=mMin; if(mMax>maxM[x]) maxM[x]=mMax; }
         });
     });
     const xs=Array.from(xsSet).sort((a,b)=>a-b);
