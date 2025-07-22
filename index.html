@@ -1001,8 +1001,10 @@ function solveSelected(){
         const maxMArr=xs.map(x=>maxM[x]);
         const minDArr=xs.map(x=>minD[x]);
         const maxDArr=xs.map(x=>maxD[x]);
-        updateChart(shearChart,xs,[minSArr,maxSArr],'Shear');
-        updateChart(momentChart,xs,[minMArr,maxMArr],'Moment');
+        const envS=minSArr.map((v,i)=>Math.abs(maxSArr[i])>=Math.abs(v)?maxSArr[i]:v);
+        const envM=minMArr.map((v,i)=>Math.abs(maxMArr[i])>=Math.abs(v)?maxMArr[i]:v);
+        updateChart(shearChart,xs,envS,'Shear');
+        updateChart(momentChart,xs,envM,'Moment');
         plotDeflection(xs,[minDArr,maxDArr]);
         document.getElementById("reactionsOutput").textContent='Envelope shown';
         const minShear=(Math.min(...minSArr)/1000).toFixed(2);
@@ -1020,8 +1022,8 @@ function solveSelected(){
     const loads=getLoadsForSelected();
     if((loads.movingPointLoads&&loads.movingPointLoads.length) || (loads.movingLineLoads&&loads.movingLineLoads.length)){
         const env=computeCaseEnvelope(loads);
-        updateChart(shearChart,env.xs,[env.minS,env.maxS],'Shear');
-        updateChart(momentChart,env.xs,[env.minM,env.maxM],'Moment');
+        updateChart(shearChart,env.xs,env.envS,'Shear');
+        updateChart(momentChart,env.xs,env.envM,'Moment');
         plotDeflection(env.xs,[env.minD,env.maxD]);
         document.getElementById("reactionsOutput").textContent='Envelope shown';
         const minShear=(Math.min(...env.minS)/1000).toFixed(2);
@@ -1236,6 +1238,7 @@ function computeCaseEnvelope(loads){
     const len=getBeamLength();
     const xsSet=new Set();
     const minS={},maxS={},minM={},maxM={},minD={},maxD={};
+    const addX=x=>xsSet.add(Number(x.toFixed(6)));
     function run(pl,ll){
         const extra=[...new Set([...pl.map(p=>p.x),...ll.flatMap(l=>[l.start,l.end])])];
         const res=computeResults({...state,pointLoads:pl,lineLoads:ll,extraNodePositions:extra});
@@ -1245,42 +1248,60 @@ function computeCaseEnvelope(loads){
         const moment=diag.momentVals.map(v=>-v);
         const def=res.nodes.map((_,idx)=>res.displacements[2*idx]*1000);
         diag.xs.forEach((x,j)=>{
-            xsSet.add(x);
-            if(minS[x]===undefined){minS[x]=shear[j]; maxS[x]=shear[j];}
-            else{ if(shear[j]<minS[x]) minS[x]=shear[j]; if(shear[j]>maxS[x]) maxS[x]=shear[j]; }
-            if(minM[x]===undefined){minM[x]=moment[j]; maxM[x]=moment[j];}
-            else{ if(moment[j]<minM[x]) minM[x]=moment[j]; if(moment[j]>maxM[x]) maxM[x]=moment[j]; }
+            const key = Number(x.toFixed(6));
+            addX(key);
+            if(minS[key]===undefined){minS[key]=shear[j]; maxS[key]=shear[j];}
+            else{ if(shear[j]<minS[key]) minS[key]=shear[j]; if(shear[j]>maxS[key]) maxS[key]=shear[j]; }
+            if(minM[key]===undefined){minM[key]=moment[j]; maxM[key]=moment[j];}
+            else{ if(moment[j]<minM[key]) minM[key]=moment[j]; if(moment[j]>maxM[key]) maxM[key]=moment[j]; }
         });
         res.nodes.forEach((x,j)=>{
-            xsSet.add(x);
+            const key = Number(x.toFixed(6));
+            addX(key);
             const d=def[j];
-            if(minD[x]===undefined){minD[x]=d; maxD[x]=d;}
-            else{ if(d<minD[x]) minD[x]=d; if(d>maxD[x]) maxD[x]=d; }
+            if(minD[key]===undefined){minD[key]=d; maxD[key]=d;}
+            else{ if(d<minD[key]) minD[key]=d; if(d>maxD[key]) maxD[key]=d; }
         });
     }
     run(basePL,baseLL);
     mPL.forEach(pl=>{
-        const step=pl.step||len;
-        for(let pos=0; pos<=len; pos+=step){
-            run([...basePL,{P:pl.P,x:pos}], baseLL);
+        const step=Math.abs(pl.step)||len;
+        for(let pos=0; pos<=len+1e-9; pos+=step){
+            const p=pos>len ? len : pos;
+            run([...basePL,{P:pl.P,x:p}], baseLL);
+            if(p===len) break;
         }
     });
     mLL.forEach(ll=>{
-        const step=ll.step||len;
+        const step=Math.abs(ll.step)||len;
         const L=ll.length||len;
-        for(let pos=0; pos<=len-L; pos+=step){
-            run(basePL, [...baseLL,{w:ll.w,start:pos,end:pos+L}]);
+        for(let pos=0; pos<=len-L+1e-9; pos+=step){
+            const p=pos>len-L ? len-L : pos;
+            run(basePL, [...baseLL,{w:ll.w,start:p,end:p+L}]);
+            if(p===len-L) break;
         }
     });
     const xs=Array.from(xsSet).sort((a,b)=>a-b);
+    const minSArr=xs.map(x=>minS[x]);
+    const maxSArr=xs.map(x=>maxS[x]);
+    const minMArr=xs.map(x=>minM[x]);
+    const maxMArr=xs.map(x=>maxM[x]);
+    const minDArr=xs.map(x=>minD[x]);
+    const maxDArr=xs.map(x=>maxD[x]);
+    const envS=minSArr.map((v,i)=>Math.abs(maxSArr[i])>=Math.abs(v)?maxSArr[i]:v);
+    const envM=minMArr.map((v,i)=>Math.abs(maxMArr[i])>=Math.abs(v)?maxMArr[i]:v);
+    const envD=minDArr.map((v,i)=>Math.abs(maxDArr[i])>=Math.abs(v)?maxDArr[i]:v);
     return {
         xs,
-        minS: xs.map(x=>minS[x]),
-        maxS: xs.map(x=>maxS[x]),
-        minM: xs.map(x=>minM[x]),
-        maxM: xs.map(x=>maxM[x]),
-        minD: xs.map(x=>minD[x]),
-        maxD: xs.map(x=>maxD[x])
+        minS:minSArr,
+        maxS:maxSArr,
+        minM:minMArr,
+        maxM:maxMArr,
+        minD:minDArr,
+        maxD:maxDArr,
+        envS,
+        envM,
+        envD
     };
 }
 
