@@ -1003,8 +1003,8 @@ function solveSelected(){
         const maxDArr=xs.map(x=>maxD[x]);
         const envS=minSArr.map((v,i)=>Math.abs(maxSArr[i])>=Math.abs(v)?maxSArr[i]:v);
         const envM=minMArr.map((v,i)=>Math.abs(maxMArr[i])>=Math.abs(v)?maxMArr[i]:v);
-        updateChart(shearChart,xs,envS,'Shear');
-        updateChart(momentChart,xs,envM,'Moment');
+        updateChart(shearChart,xs,[minSArr,maxSArr],'Shear');
+        updateChart(momentChart,xs,[minMArr,maxMArr],'Moment');
         plotDeflection(xs,[minDArr,maxDArr]);
         document.getElementById("reactionsOutput").textContent='Envelope shown';
         const minShear=(Math.min(...minSArr)/1000).toFixed(2);
@@ -1022,8 +1022,8 @@ function solveSelected(){
     const loads=getLoadsForSelected();
     if((loads.movingPointLoads&&loads.movingPointLoads.length) || (loads.movingLineLoads&&loads.movingLineLoads.length)){
         const env=computeCaseEnvelope(loads);
-        updateChart(shearChart,env.xs,env.envS,'Shear');
-        updateChart(momentChart,env.xs,env.envM,'Moment');
+        updateChart(shearChart,env.xs,[env.minS,env.maxS],'Shear');
+        updateChart(momentChart,env.xs,[env.minM,env.maxM],'Moment');
         plotDeflection(env.xs,[env.minD,env.maxD]);
         document.getElementById("reactionsOutput").textContent='Envelope shown';
         const minShear=(Math.min(...env.minS)/1000).toFixed(2);
