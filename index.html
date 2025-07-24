@@ -1366,7 +1366,9 @@ function populateSteelSelect(){
     const sels=document.querySelectorAll('.steel-grade');
     if(!sels.length) return;
     const apply=val=>{
-        state.fy=parseFloat(val)*1e6;
+        if(state.material==='steel'){
+            state.fy=parseFloat(val)*1e6;
+        }
         sels.forEach(s=>{ if(s.value!==val) s.value=val; });
         updateDesignProps(document.getElementById('designSectionSelect').value);
     };
@@ -1383,9 +1385,11 @@ function populateTimberSelect(){
         const g=timberGrades[val];
         if(!g) return;
         sels.forEach(s=>{ if(s.value!==val) s.value=val; });
-        state.E=g.E;
-        state.fm_k=g.fm_k;
-        state.fv_k=g.fv_k;
+        if(state.material==='timber'){
+            state.E=g.E;
+            state.fm_k=g.fm_k;
+            state.fv_k=g.fv_k;
+        }
         populateDesignSelect();
         populateSectionSelect();
         updateDesignProps(document.getElementById('designSectionSelect').value);
