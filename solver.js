@@ -204,8 +204,13 @@ function restoreFullVector(uFree,fixed,dof){
 let crossSectionMap = {};
 if (typeof require !== 'undefined' && typeof window === 'undefined') {
     try {
-        const data = require('./steel_cross_sections.json');
-        crossSectionMap = data.reduce((a,c)=>{a[c.profile]=c; return a;},{});
+        const steel = require('./steel_cross_sections.json');
+        const timber = require('./timber_cross_sections.json');
+        const concrete = require('./concrete_cross_sections.json');
+        crossSectionMap = {};
+        [steel, timber, concrete].forEach(arr => {
+            arr.forEach(cs => { crossSectionMap[cs.profile] = cs; });
+        });
     } catch(e) {}
 }
 if (typeof window !== 'undefined' && window.steelCrossSectionsData) {
@@ -313,6 +318,26 @@ function computeSectionDesign(name, opts){
             MRdLBA = kcrit*W*fmd;
         }
         return {EI, MRd, MRdLBA, VRd, W, gamma: gammaM, material: 'timber'};
+    }
+
+    if(material === 'concrete'){
+        const E = opts.E !== undefined ? opts.E : 30e9;
+        const gammaC = opts.gammaC !== undefined ? opts.gammaC : 1.5;
+        const gammaS = opts.gammaS !== undefined ? opts.gammaS : 1.15;
+        const fck = opts.fck !== undefined ? opts.fck : 30e6;
+        const fcd = fck/gammaC;
+        const fyd = 500e6/gammaS;
+        const rho = opts.rho !== undefined ? opts.rho : 0.01;
+        const EI = E*I;
+        const b = cs.b_mm/1000;
+        const hsec = cs.h_mm/1000;
+        const d = 0.9*hsec;
+        const As = rho*b*hsec;
+        const x = Math.min(As*fyd/(0.85*fcd*b), 0.45*hsec);
+        const z = d - 0.5*x;
+        const MRd = As*fyd*z;
+        const VRd = 0.5*fcd*b*d;
+        return {EI, MRd, MRdLBA: MRd, VRd, W, gamma: gammaC, material: 'concrete', x, d};
     }
 
     const E = opts.E !== undefined ? opts.E : 210e9;

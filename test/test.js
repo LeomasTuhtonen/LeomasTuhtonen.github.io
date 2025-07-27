@@ -55,6 +55,13 @@ function close(actual, expected, tol, msg){
   assert(design.E > 0 && design.G > 0, 'moduli not stored');
 })();
 
+// Concrete design basic test
+(function testConcreteDesign(){
+  const design = computeSectionDesign('200x400', {material:'concrete', rho:0.01});
+  assert(design.MRd > 0, 'MRd not computed');
+  assert(design.VRd > 0, 'VRd not computed');
+})();
+
 // Simple frame test
 (function testSimpleFrame(){
   const frame = {
