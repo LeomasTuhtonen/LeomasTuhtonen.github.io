@@ -224,6 +224,10 @@
                     <label>Lateral bracing length:</label>
                     <input type="number" id="designLb" value="1" step="0.1" /> m
                 </div>
+                <div class="input-row concrete-rho-row" id="concreteRhoRow">
+                    <label>Reinforcement ratio ρ:</label>
+                    <input type="number" id="designRho" value="0.01" step="0.001" />
+                </div>
             </div>
 
             <div id="designUtilizations" class="section">
@@ -412,6 +416,14 @@ const timberGrades = {
     C24: {E:11e9,fm_k:24e6,fv_k:4e6},
     GL30c: {E:13e9,fm_k:30e6,fv_k:4e6}
 };
+
+function getSectionLabel(name){
+    const cs = allSections[name];
+    if(!cs) return name;
+    const series = cs.series || '';
+    const prefix = series.charAt(0).toUpperCase() + series.slice(1);
+    return prefix + ' | ' + name;
+}
 
 function getFilteredSectionNames(){
     if(state.material==='timber'){
@@ -858,6 +870,9 @@ function updateMaterialUI(){
     });
     document.querySelectorAll('.timber-grade-row').forEach(r=>{
         r.style.display=state.material==='timber'?'flex':'none';
+    });
+    document.querySelectorAll('.concrete-rho-row').forEach(r=>{
+        r.style.display=state.material==='concrete'?'flex':'none';
     });
     // concrete has no grade selection
 }
@@ -1572,6 +1587,9 @@ function updateDesignEquations(design){
         div.innerHTML=String.raw`$$M_{Rd}=\frac{W f_{m,k}}{\gamma_M}=${disp(mRd)}\,\mathrm{kN\,m}$$<br>`+
                      String.raw`$$M_{Rd,LTB}=k_{crit} W f_{m,d}=${disp(mRdLBA)}\,\mathrm{kN\,m}$$<br>`+
                      String.raw`$$V_{Rd}=\frac{A_v f_{v,k}}{\gamma_M}=${disp(vRd)}\,\mathrm{kN}$$`;
+    } else if(design.material==='concrete'){
+        div.innerHTML=String.raw`$$M_{Rd}=A_s f_{yd}(d-0.5x)=${disp(mRd)}\,\mathrm{kN\,m}$$<br>`+
+                     String.raw`$$V_{Rd}=0.5 b d f_{cd}=${disp(vRd)}\,\mathrm{kN}$$`;
     } else {
         const iw=design.Iw!==undefined?design.Iw.toExponential(2):'-';
         const it=design.It!==undefined?design.It.toExponential(2):'-';
@@ -1618,9 +1636,10 @@ function updateDesignProps(name){
     drawSectionGraphic(cs);
     if(!cs){ EIel.textContent='-'; if(Wel) Wel.textContent='-'; if(gammaEl) gammaEl.textContent='-'; MRdel.textContent='-'; if(MRdLBdel) MRdLBdel.textContent='-'; if(Iwel) Iwel.textContent='-'; if(Itel) Itel.textContent='-'; if(IzEl) IzEl.textContent='-'; if(McrEl) McrEl.textContent='-'; if(chiEl) chiEl.textContent='-'; VRdel.textContent='-'; if(MbendUtil) { MbendUtil.textContent='-'; MbendUtil.style.color=''; } if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
     let design=null;
-    if(window.computeSectionDesign && state.material!=='concrete'){
+    if(window.computeSectionDesign){
         const Lb=parseFloat(document.getElementById('designLb').value);
-        design=computeSectionDesign(name,{fy:state.fy,E:state.E,material:state.material,fm_k:state.fm_k,fv_k:state.fv_k,unbracedLength:Lb});
+        const rho=parseFloat(document.getElementById('designRho')?.value||'0.01');
+        design=computeSectionDesign(name,{fy:state.fy,E:state.E,material:state.material,fm_k:state.fm_k,fv_k:state.fv_k,unbracedLength:Lb,rho});
     }
     const Iy = cs.I_y !== undefined ? cs.I_y : (cs.Iy_m4 !== undefined ? cs.Iy_m4 : (cs.Iz_m4 !== undefined ? cs.Iz_m4 : cs.I_z));
     const EIval=(design?design.EI:state.E*Iy)/1000;
@@ -1780,7 +1799,7 @@ function rebuildFrameBeams(){
         `<th>axial (N/m)</th><th>vert (N/m)</th><th>rot (N·m/rad)</th><th></th><th></th><th></th>`+
         `</tr></thead><tbody>`;
     frameState.beams.forEach((b,i)=>{
-        const opts=optsAll.map(n=>`<option value="${n}"${n===b.section?' selected':''}>${n}</option>`).join('');
+        const opts=optsAll.map(n=>`<option value="${n}"${n===b.section?' selected':''}>${getSectionLabel(n)}</option>`).join('');
         html+=`<tr>`+
           `<td><input value='${b.name}' onchange='frameState.beams[${i}].name=this.value'/></td>`+
           `<td><input type='number' value='${b.x1}' step='0.1' onchange='frameState.beams[${i}].x1=parseFloat(this.value); rebuildNodes(); rebuildNodeOptions(); solveFrame();'/></td>`+
