@@ -83,6 +83,7 @@
             <select id="materialSelect">
                 <option value="steel" selected>Steel</option>
                 <option value="timber">Timber</option>
+                <option value="concrete">Concrete</option>
             </select>
         </div>
         <div class="input-row steel-grade-row">
@@ -197,6 +198,7 @@
                     <select id="designMaterialSelect">
                         <option value="steel" selected>Steel</option>
                         <option value="timber">Timber</option>
+                        <option value="concrete">Concrete</option>
                     </select>
                 </div>
                 <div class="input-row steel-grade-row" id="steelGradeRow">
@@ -403,6 +405,8 @@ const state = {
 
 let steelSections = {};
 let timberSections = {};
+let concreteSections = {};
+let allSections = {};
 let crossSections = {};
 const timberGrades = {
     C24: {E:11e9,fm_k:24e6,fv_k:4e6},
@@ -442,7 +446,9 @@ function updateSectionProps(name){
 
 function setMaterial(mat){
     state.material = mat;
-    crossSections = mat === 'timber' ? timberSections : steelSections;
+    if(mat==='timber') crossSections = timberSections;
+    else if(mat==='concrete') crossSections = concreteSections;
+    else crossSections = steelSections;
     if(window.setCrossSections) window.setCrossSections(crossSections);
     populateSectionSelect();
     populateDesignSelect();
@@ -472,7 +478,9 @@ function loadCrossSections(){
     } else {
         promises.push(fetch('./timber_cross_sections.json').then(r=>r.json()).then(d=>{timberSections={};d.forEach(cs=>{timberSections[cs.profile]=cs;});}));
     }
+    promises.push(fetch('./concrete_cross_sections.json').then(r=>r.json()).then(d=>{concreteSections={};d.forEach(cs=>{concreteSections[cs.profile]=cs;});}));
     Promise.all(promises).then(()=>{
+        allSections = Object.assign({}, steelSections, timberSections, concreteSections);
         setMaterial(state.material || 'steel');
     });
 }
@@ -851,6 +859,7 @@ function updateMaterialUI(){
     document.querySelectorAll('.timber-grade-row').forEach(r=>{
         r.style.display=state.material==='timber'?'flex':'none';
     });
+    // concrete has no grade selection
 }
 document.getElementById('materialSelect').onchange=function(){
     state.material=this.value;
@@ -859,8 +868,10 @@ document.getElementById('materialSelect').onchange=function(){
         const g=timberGrades[grade];
         if(g){ state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; }
         populateTimberSelect();
-    } else {
+    } else if(this.value==='steel') {
         state.E=210e9; populateSteelSelect();
+    } else {
+        state.E=30e9; // default for concrete
     }
     document.getElementById('designMaterialSelect').value=this.value;
     updateMaterialUI();
@@ -873,8 +884,10 @@ document.getElementById('designMaterialSelect').onchange=function(){
         const g=timberGrades[grade];
         if(g){ state.E=g.E; state.fm_k=g.fm_k; state.fv_k=g.fv_k; }
         populateTimberSelect();
-    } else {
+    } else if(this.value==='steel') {
         state.E=210e9; populateSteelSelect();
+    } else {
+        state.E=30e9;
     }
     document.getElementById('materialSelect').value=this.value;
     updateMaterialUI();
@@ -1605,7 +1618,7 @@ function updateDesignProps(name){
     drawSectionGraphic(cs);
     if(!cs){ EIel.textContent='-'; if(Wel) Wel.textContent='-'; if(gammaEl) gammaEl.textContent='-'; MRdel.textContent='-'; if(MRdLBdel) MRdLBdel.textContent='-'; if(Iwel) Iwel.textContent='-'; if(Itel) Itel.textContent='-'; if(IzEl) IzEl.textContent='-'; if(McrEl) McrEl.textContent='-'; if(chiEl) chiEl.textContent='-'; VRdel.textContent='-'; if(MbendUtil) { MbendUtil.textContent='-'; MbendUtil.style.color=''; } if(Mutil) Mutil.textContent='-'; if(Vutil) Vutil.textContent='-'; updateDesignEquations(null); return; }
     let design=null;
-    if(window.computeSectionDesign){
+    if(window.computeSectionDesign && state.material!=='concrete'){
         const Lb=parseFloat(document.getElementById('designLb').value);
         design=computeSectionDesign(name,{fy:state.fy,E:state.E,material:state.material,fm_k:state.fm_k,fv_k:state.fv_k,unbracedLength:Lb});
     }
@@ -1732,7 +1745,7 @@ function updateFrameWarning(){
 }
 
 function addFrameBeam(){
-    const first=Object.keys(crossSections)[0]||'';
+    const first=Object.keys(allSections)[0]||'';
     const idx=frameState.beams.length+1;
     frameState.beams.push({name:`B${idx}`,x1:0,y1:0,x2:1,y2:0,section:first,
         kx1:-1,ky1:-1,cz1:-1,kx2:-1,ky2:-1,cz2:-1,on:true});
@@ -1756,7 +1769,7 @@ function removeFrameBeam(i){
 
 function rebuildFrameBeams(){
     const c=document.getElementById('frameBeams');
-    const optsAll=Object.keys(crossSections).sort();
+    const optsAll=Object.keys(allSections).sort();
     const guide="<div style='font-size:12px;font-style:italic;color:#555;margin-bottom:4px;'>-1 = fixed, 0 = release, positive = spring stiffness</div>";
     let html=guide+`<table><thead>`+
         `<tr><th>Name</th><th>X1</th><th>Y1</th><th>X2</th><th>Y2</th>`+
@@ -1955,7 +1968,7 @@ function clearFrameModel(){
 function solveFrame(){
     rebuildNodes();
     const beams=frameState.beams.filter(b=>b.on!==false).map(b=>{
-        const cs=crossSections[b.section]||{};
+        const cs=allSections[b.section]||{};
         const I=cs.I_y||cs.Iy_m4||cs.I_z||cs.Iz_m4||1e-6;
         const A=cs.A_m2||0.001;
         return {n1:b.n1,n2:b.n2,E:state.E,I,A,
@@ -2072,7 +2085,7 @@ function drawFrame(res,diags){
         const p2=toPoint(n2.x,n2.y);
         const dir=p2.subtract(p1).normalize();
         const perp=dir.rotate(90);
-        const h=(crossSections[b.section]?.h_mm||0)/1000;
+        const h=(allSections[b.section]?.h_mm||0)/1000;
         const half=h*scale/2;
         const path=new framePaper.Path({strokeColor:'gray', fillColor:'#eee'});
         path.add(p1.add(perp.multiply(-half)));
