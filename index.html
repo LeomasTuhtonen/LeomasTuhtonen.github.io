@@ -476,6 +476,7 @@ function setMaterial(mat){
         updateSelfWeightLineLoad();
         solveSelected();
     }
+    rebuildFrameBeams();
 }
 
 function loadCrossSections(){
@@ -494,6 +495,7 @@ function loadCrossSections(){
     Promise.all(promises).then(()=>{
         allSections = Object.assign({}, steelSections, timberSections, concreteSections);
         setMaterial(state.material || 'steel');
+        rebuildFrameBeams();
     });
 }
 loadCrossSections();
@@ -942,6 +944,9 @@ document.getElementById('rightSupportToggle').onchange=function(){
     solveSelected();
 };
 document.getElementById('designLb').onchange=function(){
+    updateDesignProps(document.getElementById('designSectionSelect').value);
+};
+document.getElementById('designRho').onchange=function(){
     updateDesignProps(document.getElementById('designSectionSelect').value);
 };
 
@@ -1589,7 +1594,7 @@ function updateDesignEquations(design){
                      String.raw`$$V_{Rd}=\frac{A_v f_{v,k}}{\gamma_M}=${disp(vRd)}\,\mathrm{kN}$$`;
     } else if(design.material==='concrete'){
         div.innerHTML=String.raw`$$M_{Rd}=A_s f_{yd}(d-0.5x)=${disp(mRd)}\,\mathrm{kN\,m}$$<br>`+
-                     String.raw`$$V_{Rd}=0.5 b d f_{cd}=${disp(vRd)}\,\mathrm{kN}$$`;
+                     String.raw`$$V_{Rd}=\frac{A_{sw}}{s} f_{yd} d=${disp(vRd)}\,\mathrm{kN}$$`;
     } else {
         const iw=design.Iw!==undefined?design.Iw.toExponential(2):'-';
         const it=design.It!==undefined?design.It.toExponential(2):'-';

@@ -336,8 +336,9 @@ function computeSectionDesign(name, opts){
         const x = Math.min(As*fyd/(0.85*fcd*b), 0.45*hsec);
         const z = d - 0.5*x;
         const MRd = As*fyd*z;
-        const VRd = 0.5*fcd*b*d;
-        return {EI, MRd, MRdLBA: MRd, VRd, W, gamma: gammaC, material: 'concrete', x, d};
+        const Asw_s = opts.Asw_s !== undefined ? opts.Asw_s : 5e-4; // m^2/m (e.g. two 8mm legs @200mm)
+        const VRd = Asw_s * fyd * d;
+        return {EI, MRd, MRdLBA: MRd, VRd, W, gamma: gammaC, material: 'concrete', x, d, Asw_s};
     }
 
     const E = opts.E !== undefined ? opts.E : 210e9;
