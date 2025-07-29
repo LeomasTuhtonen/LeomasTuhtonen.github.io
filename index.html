@@ -373,6 +373,10 @@
                 <canvas id="frameCanvas" width="800" height="650" style="border:1px solid #ccc; width:100%; height:100%;"></canvas>
             </div>
         </div>
+        <div class="section">
+            <h2>Member Results</h2>
+            <div id="frameMemberResults"></div>
+        </div>
     </div> <!-- end frameTab -->
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -2022,6 +2026,7 @@ function solveFrame(){
         frameDiags=[];
         drawFrame(res,[]);
         updateFrameReactions(null);
+        updateFrameMemberResults(null,null);
         updateFrameWarning();
         return;
     } else {
@@ -2034,6 +2039,7 @@ function solveFrame(){
         frameDiags=[];
         drawFrame(null,[]);
         updateFrameReactions(null);
+        updateFrameMemberResults(null,null);
         updateFrameWarning();
         return;
     }
@@ -2046,6 +2052,7 @@ function solveFrame(){
     if(document.getElementById('frameTab').style.display!=='none'){
         drawFrame(res,diags);
     }
+    updateFrameMemberResults(res,diags);
 }
 
 function updateFrameReactions(res){
@@ -2064,6 +2071,51 @@ function updateFrameReactions(res){
     html+=`<tr><th colspan="2">Sum</th><th>${(sumX/1000).toFixed(1)}</th><th>${(sumY/1000).toFixed(1)}</th><th>${(sumZ/1000).toFixed(1)}</th></tr>`;
     html+='</tbody></table>';
     table.innerHTML=html;
+}
+
+function updateFrameMemberResults(res, diags){
+    const container=document.getElementById('frameMemberResults');
+    if(!container){return;}
+    if(!res||!diags){container.innerHTML='';return;}
+    let html='<table><thead><tr><th>Beam</th><th>Min M (kN·m)</th><th>Max M (kN·m)</th><th>Min V (kN)</th><th>Max V (kN)</th><th>Min N (kN)</th><th>Max N (kN)</th><th>Ux1 (mm)</th><th>Uy1 (mm)</th><th>Ux2 (mm)</th><th>Uy2 (mm)</th><th>Ux max (mm)</th><th>Uy max (mm)</th></tr></thead><tbody>';
+    frameState.beams.forEach((b,i)=>{
+        const d=diags[i];
+        if(!d){return;}
+        const mVals=d.moment.map(p=>p.y);
+        const vVals=d.shear.map(p=>p.y);
+        const nVals=d.normal.map(p=>p.y);
+        const minM=Math.min(...mVals)/1000;
+        const maxM=Math.max(...mVals)/1000;
+        const minV=Math.min(...vVals)/1000;
+        const maxV=Math.max(...vVals)/1000;
+        const minN=Math.min(...nVals)/1000;
+        const maxN=Math.max(...nVals)/1000;
+        const ux1=res.displacements[3*b.n1];
+        const uy1=res.displacements[3*b.n1+1];
+        const ux2=res.displacements[3*b.n2];
+        const uy2=res.displacements[3*b.n2+1];
+        const n1=frameState.nodes[b.n1];
+        const n2=frameState.nodes[b.n2];
+        const dx=n2.x-n1.x, dy=n2.y-n1.y; const L=Math.hypot(dx,dy);
+        const c=dx/L, s=dy/L;
+        const dGlobal=[ux1,uy1,res.displacements[3*b.n1+2],ux2,uy2,res.displacements[3*b.n2+2]];
+        const T=[[c,s,0,0,0,0],[-s,c,0,0,0,0],[0,0,1,0,0,0],[0,0,0,c,s,0],[0,0,0,-s,c,0],[0,0,0,0,0,1]];
+        const dLocal=mulMV(T,dGlobal);
+        let maxUx=0,maxUy=0;
+        const steps=20;
+        for(let j=0;j<=steps;j++){
+            const t=j/steps; const x=t*L;
+            const u=dLocal[0]*(1-t)+dLocal[3]*t;
+            const w=dLocal[1]*(1-3*t*t+2*t*t*t)+dLocal[2]*(x-2*x*x/L+x*x*x/(L*L))+dLocal[4]*(3*t*t-2*t*t*t)+dLocal[5]*(-x*x/L+x*x*x/(L*L));
+            const defX=c*u - s*w;
+            const defY=s*u + c*w;
+            maxUx=Math.max(maxUx,Math.abs(defX));
+            maxUy=Math.max(maxUy,Math.abs(defY));
+        }
+        html+=`<tr><td>${b.name||'B'+(i+1)}</td><td>${minM.toFixed(2)}</td><td>${maxM.toFixed(2)}</td><td>${minV.toFixed(2)}</td><td>${maxV.toFixed(2)}</td><td>${minN.toFixed(2)}</td><td>${maxN.toFixed(2)}</td><td>${(ux1*1000).toFixed(2)}</td><td>${(uy1*1000).toFixed(2)}</td><td>${(ux2*1000).toFixed(2)}</td><td>${(uy2*1000).toFixed(2)}</td><td>${(maxUx*1000).toFixed(2)}</td><td>${(maxUy*1000).toFixed(2)}</td></tr>`;
+    });
+    html+='</tbody></table>';
+    container.innerHTML=html;
 }
 
 function drawFrame(res,diags){
